@@ -140,14 +140,60 @@ function banner(text, ms = 4000) {
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => { b.hidden = true; }, ms);
 }
-function speak(text) {
+/* 짧은 알림음 (말소리가 안 나는 브라우저에서도 남) */
+let audioCtx = null;
+function chime(kind) {
   try {
-    if (!('speechSynthesis' in window)) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ko-KR'; u.rate = 0.9;
-    speechSynthesis.speak(u);
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const notes = kind === 'arrive' ? [523, 659, 784, 1047] : kind === 'alert' ? [880, 660, 880] : [660, 880];
+    const t0 = audioCtx.currentTime + 0.02;
+    notes.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const t = t0 + i * 0.22;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (i === notes.length - 1 ? 0.8 : 0.3));
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.9);
+    });
   } catch (e) {}
+}
+/* 말소리: 카톡 안 브라우저처럼 말소리를 못 내는 곳에서는 알림음 + 크롬 안내 */
+const inKakao = /KAKAOTALK/i.test(navigator.userAgent);
+let speechOk = null; // null 모름, true 됨, false 안 됨
+let speechHintShown = false;
+function speak(text, kind) {
+  let started = false;
+  try {
+    if ('speechSynthesis' in window && speechOk !== false) {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ko-KR'; u.rate = 0.9;
+      const ko = (speechSynthesis.getVoices() || []).find(v => /^ko/i.test(v.lang));
+      if (ko) u.voice = ko;
+      u.onstart = () => { started = true; speechOk = true; };
+      speechSynthesis.speak(u);
+    }
+  } catch (e) {}
+  if (speechOk === true) return;
+  // 1.2초 안에 말이 시작되지 않으면 안 되는 것으로 봄
+  setTimeout(() => {
+    if (started) return;
+    speechOk = false;
+    if (kind !== 'none') chime(kind);
+    if (!speechHintShown) {
+      speechHintShown = true;
+      banner(inKakao ? '카톡 안에서는 말소리가 안 나요. 설정에서 「크롬으로 열기」를 눌러요' : '이 휴대폰 브라우저는 말소리를 못 내요', 7000);
+    }
+  }, speechOk === false ? 0 : 1200);
+}
+function openInChrome() {
+  const url = location.href.split('#')[0];
+  if (inKakao) location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+  else if (/Android/i.test(navigator.userAgent)) location.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+  else window.open(url, '_blank');
 }
 function buzz(p = [300, 150, 300]) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
 let wakeLock = null;
@@ -447,7 +493,9 @@ $('#alight-done').onclick = () => {
 function elderArrive() {
   E.arrived = true;
   show('s-arrive');
-  buzz([200]);
+  buzz([300, 120, 300]);
+  chime('arrive');
+  setTimeout(() => speak('도착했어요', 'none'), 1000);
 }
 $('#arrive-tell').onclick = () => {
   Link.send('arrived', { name: E.trip && E.trip.dest ? E.trip.dest.name : '' });
@@ -864,6 +912,8 @@ $('#set-share-toggle').onclick = () => {
   banner(E.sharing ? '가족에게 위치를 보내기 시작했어요' : '위치 보내기를 껐어요');
   if (E.sharing) sendElderLoc(true);
 };
+$('#set-chrome').onclick = () => openInChrome();
+$('#set-sound').onclick = () => { chime('arrive'); setTimeout(() => speak('도착했어요', 'none'), 1000); };
 $('#set-role').onclick = () => { store.del('role'); location.href = location.pathname; };
 
 /* ======================================================
