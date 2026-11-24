@@ -191,3 +191,5 @@ body[data-role=elder] #banner{top:auto;bottom:max(130px,env(safe-area-inset-bott
 input.need{outline:4px solid var(--orange,#E8772E);outline-offset:2px}
 /* 설정 화면에서는 알림 띠를 위로 (저장 버튼을 가리지 않게) */
 body #banner.top{top:max(12px,env(safe-area-inset-top));bottom:auto}
+/* 어르신 로드뷰 화면이 스크롤 없이 한 화면에 들어가게 */
+#rv-elder{height:max(220px,calc(100dvh - 400px));min-height:0}

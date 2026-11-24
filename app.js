@@ -180,18 +180,32 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- 카카오 지도 (키가 있을 때만) ---------- */
+/* 보안 설정(CSP)에 막힌 주소를 기록: 로드뷰가 안 뜰 때 화면에 이유로 보여 줌 */
+const blocked = [];
+document.addEventListener('securitypolicyviolation', e => {
+  try { const u = new URL(e.blockedURI); if (!blocked.includes(u.host)) blocked.push(u.host); }
+  catch (err) { if (e.blockedURI && !blocked.includes(e.blockedURI)) blocked.push(e.blockedURI); }
+});
 const Kakao = {
   state: 'none', // none | loading | ready | failed
+  why: '',
   _p: null,
   load() {
     if (!S.kakaoKey) { this.state = 'none'; return Promise.reject(new Error('nokey')); }
     if (this._p) return this._p;
     this.state = 'loading';
     this._p = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.state = 'failed'; this.why = 'timeout'; reject(new Error('timeout')); }, 15000);
+      const ok = () => { clearTimeout(timer); this.state = 'ready'; resolve(); };
+      const bad = why => { clearTimeout(timer); this.state = 'failed'; this.why = why; reject(new Error(why)); };
       const s = document.createElement('script');
       s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + encodeURIComponent(S.kakaoKey) + '&autoload=false&libraries=services';
-      s.onload = () => { try { kakao.maps.load(() => { this.state = 'ready'; resolve(); }); } catch (e) { this.state = 'failed'; reject(e); } };
-      s.onerror = () => { this.state = 'failed'; reject(new Error('load')); };
+      s.onload = () => {
+        // 키가 틀렸거나 등록한 웹 도메인이 다르면 kakao 객체가 없거나 load가 끝나지 않음
+        if (!window.kakao || !kakao.maps || !kakao.maps.load) return bad('sdk');
+        try { kakao.maps.load(ok); } catch (e) { bad('sdk'); }
+      };
+      s.onerror = () => bad('load');
       document.head.appendChild(s);
     });
     this._p.catch(() => { this._p = null; });
@@ -202,19 +216,38 @@ const Kakao = {
   roadview(el, pos, pan) {
     return new Promise(resolve => {
       if (!this.ready()) return resolve(null);
-      el.innerHTML = '';
-      const rv = new kakao.maps.Roadview(el);
-      const rc = new kakao.maps.RoadviewClient();
-      const p = new kakao.maps.LatLng(pos.lat, pos.lng);
-      rc.getNearestPanoId(p, 50, id => {
-        if (id === null) return resolve(null);
-        kakao.maps.event.addListener(rv, 'init', () => {
-          rv.setViewpoint({ pan: pan, tilt: 0, zoom: 0 });
-          resolve(rv);
+      let done = false;
+      const finish = (rv, why) => { if (done) return; done = true; clearTimeout(t); this.rvWhy = why || ''; resolve(rv); };
+      const t = setTimeout(() => finish(null, 'rvtimeout'), 12000);
+      try {
+        el.innerHTML = '';
+        const rv = new kakao.maps.Roadview(el);
+        const rc = new kakao.maps.RoadviewClient();
+        const p = new kakao.maps.LatLng(pos.lat, pos.lng);
+        rc.getNearestPanoId(p, 100, id => {
+          if (id === null) return finish(null, 'nopano');
+          kakao.maps.event.addListener(rv, 'init', () => {
+            rv.setViewpoint({ pan: pan, tilt: 0, zoom: 0 });
+            finish(rv);
+          });
+          rv.setPanoId(id, p);
         });
-        rv.setPanoId(id, p);
-      });
+      } catch (e) { finish(null, 'error'); }
     });
+  },
+  rvWhy: '',
+  /* 로드뷰가 안 뜬 이유를 한 줄로 */
+  reason() {
+    let r;
+    if (!S.kakaoKey) r = '카카오 키가 없어요. 설정에서 키를 넣어 주세요';
+    else if (this.state === 'failed') r = this.why === 'timeout' ? '카카오 지도를 불러오지 못했어요 (시간 초과)'
+      : '카카오 지도를 불러오지 못했어요. 키 또는 카카오에 등록한 웹 주소를 확인해 주세요';
+    else if (this.rvWhy === 'nopano') r = '이 자리 100m 안에는 로드뷰가 없어요';
+    else if (this.rvWhy === 'rvtimeout') r = '로드뷰를 불러오지 못했어요 (시간 초과)';
+    else if (this.rvWhy === 'error') r = '로드뷰를 여는 중 오류가 났어요';
+    else r = '로드뷰를 불러오지 못했어요';
+    if (blocked.length) r += ' · 막힌 주소: ' + blocked.join(', ');
+    return r;
   },
   search(q) {
     return new Promise(resolve => {
@@ -287,14 +320,18 @@ onShow['s-guide'] = async () => {
   if (!g) { show('s-ehome'); return; }
   $('#guide-phrase').textContent = g.phrase;
   const box = $('#rv-elder');
+  const note = $('#rv-elder-fallback .rv-note');
   box.classList.remove('has-rv');
+  note.textContent = '로드뷰 불러오는 중';
   try { await Kakao.load(); } catch (e) {}
+  let rv = null;
   if (Kakao.ready()) {
     let holder = $('#rv-elder-holder');
     if (!holder) { holder = document.createElement('div'); holder.id = 'rv-elder-holder'; box.prepend(holder); }
-    const rv = await Kakao.roadview(holder, g, g.pan);
+    rv = await Kakao.roadview(holder, g, g.pan);
     if (rv) box.classList.add('has-rv');
   }
+  if (!rv) note.textContent = Kakao.reason();
   // 로드뷰가 없을 때: 큰 화살표만 (방향은 나침반에서)
 };
 $('#guide-speak').onclick = () => { if (E.guide) speak(E.guide.phrase); };
@@ -662,14 +699,16 @@ onShow['s-cdir'] = async () => {
   box.classList.remove('has-rv');
   $('#dial-controls').hidden = false;
   drawDial();
+  $('#rv-child-note').textContent = '로드뷰 불러오는 중';
   try { await Kakao.load(); } catch (e) {}
+  C.rv = null;
   if (Kakao.ready() && C.elder) {
     let holder = $('#rv-child-holder');
     if (!holder) { holder = document.createElement('div'); holder.id = 'rv-child-holder'; box.prepend(holder); }
     C.rv = await Kakao.roadview(holder, C.elder, C.pan);
     if (C.rv) { box.classList.add('has-rv'); $('#dial-controls').hidden = true; }
-    else $('#rv-child-note').textContent = '이 자리 근처에는 로드뷰가 없어요. 방향만 골라요.';
   }
+  if (!C.rv) $('#rv-child-note').textContent = Kakao.reason() + '. 지금은 방향만 골라요.';
 };
 function drawDial() {
   buildNSEW($('#dial-nsew'), 100, 100, 74, 0);
@@ -733,7 +772,7 @@ onShow['s-settings'] = () => {
   $('#set-test').checked = S.test;
   $('#set-share-toggle').textContent = E.sharing ? '위치 보내기 끄기' : '위치 보내기 켜기';
   const st = { none: '키 없음: 지도·로드뷰·장소 찾기는 꺼져 있어요', loading: '불러오는 중', ready: '카카오 지도 연결됨', failed: '불러오기 실패: 키나 등록한 웹 도메인을 확인해 주세요' };
-  $('#set-kakao-status').textContent = st[Kakao.state] || '';
+  $('#set-kakao-status').textContent = (Kakao.state === 'failed' ? Kakao.reason() : st[Kakao.state]) || '';
 };
 $('#set-save').onclick = () => {
   S.elderName = $('#set-name').value.trim() || '어머니'; store.set('elderName', S.elderName);
