@@ -985,9 +985,11 @@ $$('[data-role-pick]').forEach(b => b.onclick = () => {
 Link.on(m => { if (S.role === 'elder') elderOnMessage(m); else if (S.role === 'child') childOnMessage(m); });
 
 /* 카톡 안 브라우저로 열리면 휴대폰 기본 브라우저(크롬 등)로 다시 엶:
- * 등록·위치 허가가 한곳에 남고 말소리도 쓸 수 있게 */
+ * 등록·위치 허가가 한곳에 남고 말소리도 쓸 수 있게.
+ * 가족(자녀)은 말소리가 필요 없으므로 카톡 안에서 그대로 엶:
+ * 링크를 열 때마다 브라우저에 새 탭이 쌓이는 문제(삼성 인터넷 99개 한도)를 피함 */
 function leaveKakao() {
-  if (!inKakao || params.get('inapp') === '1') return false;
+  if (!inKakao || params.get('inapp') === '1' || S.role === 'child') return false;
   const url = location.href.split('#')[0];
   document.body.innerHTML = '<section class="screen pad center active" style="justify-content:center;gap:24px">'
     + '<h1 class="big">크롬으로 여는 중</h1>'
