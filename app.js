@@ -497,9 +497,33 @@ function elderArrive() {
   chime('arrive');
   setTimeout(() => speak('도착했어요', 'none'), 1000);
 }
-$('#arrive-tell').onclick = () => {
-  Link.send('arrived', { name: E.trip && E.trip.dest ? E.trip.dest.name : '' });
-  banner('가족에게 알렸어요');
+/* 가족 휴대폰에서 열 링크: 일(도착·위치)과 어르신 위치를 주소에 담음 */
+function familyUrl(type) {
+  const d = { type, t: Date.now() };
+  if (E.pos) { d.lat = +E.pos.lat.toFixed(6); d.lng = +E.pos.lng.toFixed(6); }
+  if (E.trip && E.trip.dest) d.name = E.trip.dest.name;
+  return location.origin + location.pathname + '?role=child&ev=' + encodeURIComponent(JSON.stringify(d));
+}
+function currentPos() {
+  if (E.pos) return Promise.resolve(E.pos);
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(p => { E.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; resolve(E.pos); },
+      () => resolve(null), { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  });
+}
+$('#ehome-sendloc').onclick = async () => {
+  banner('위치를 찾는 중', 3000);
+  const pos = await currentPos();
+  if (!pos) { banner('위치를 못 찾았어요. 위치 권한을 켜 주세요', 6000); return; }
+  const r = await sendKakao('지금 여기 있어요', familyUrl('loc'), '위치 보기');
+  banner(r === 'kakao' ? '카톡을 열었어요. 가족을 골라 주세요' : r === 'copied' ? '복사했어요. 카톡에 붙여 넣어 주세요' : r === 'cancel' ? '보내지 않았어요' : r === 'fail' ? '보내지 못했어요' : '보낼 곳을 골라 주세요', 6000);
+};
+$('#arrive-tell').onclick = async () => {
+  const name = E.trip && E.trip.dest ? E.trip.dest.name : '';
+  Link.send('arrived', { name }); // 같은 휴대폰 시험용
+  const r = await sendKakao((name ? name + '에 ' : '') + '도착했어요', familyUrl('arrived'), '확인');
+  banner(r === 'kakao' ? '카톡을 열었어요. 가족을 골라 주세요' : r === 'copied' ? '복사했어요. 카톡에 붙여 넣어 주세요' : r === 'cancel' ? '보내지 않았어요' : r === 'fail' ? '보내지 못했어요' : '보낼 곳을 골라 주세요', 6000);
 };
 $('#arrive-home').onclick = () => show('s-ehome');
 
@@ -623,11 +647,30 @@ const C = {
   phrase: '곧장 가요',
 };
 
+function readFamilyEvent() {
+  const raw = params.get('ev');
+  if (!raw) return null;
+  try {
+    const d = JSON.parse(raw);
+    history.replaceState(history.state, '', location.pathname + '?role=child');
+    if (d && isFinite(d.lat) && isFinite(d.lng)) {
+      // 어르신 위치로 기록 (이 휴대폰 안에서)
+      store.set('last_elderLoc', { type: 'elderLoc', data: { lat: +d.lat, lng: +d.lng, t: +d.t || Date.now(), fromLink: true }, t: +d.t || Date.now() });
+    }
+    return d;
+  } catch (e) { return null; }
+}
 function childStart() {
+  const ev = readFamilyEvent();
   const t = Link.last('trip');
   if (t && t.data) C.trip = Object.assign({ from: null, stop: null, dest: null }, t.data);
   const l = Link.last('elderLoc');
   if (l) C.elder = l.data;
+  if (ev) setTimeout(() => {
+    const who = josa(S.elderName || '어르신', '이', '가');
+    banner(ev.type === 'arrived' ? who + ' 도착했어요' : who + ' 지금 위치를 보냈어요', 8000);
+    if (ev.type === 'arrived') { buzz([200, 100, 200]); chime('arrive'); }
+  }, 300);
   fillFields();
   show('s-cmap');
   Kakao.load().catch(() => {});
@@ -847,13 +890,17 @@ async function shareGuide(g) {
   const url = guideUrl(g);
   const who = S.elderName || '어르신';
   const text = who + '께 길 안내: ' + g.phrase + '\n「길 보기」나 링크를 누르면 로드뷰와 방향이 떠요';
+  return sendKakao(text, url, '길 보기');
+}
+/* 카톡으로 글+링크 보내기. 결과: kakao | share | copied | cancel | fail */
+async function sendKakao(text, url, buttonTitle) {
   // 1) 카카오톡 공유 (카톡 안 브라우저에서도 됨)
   if (S.kakaoKey) {
     try {
       await loadKakaoShare();
       const KS = window.Kakao;
       if (!KS.isInitialized()) KS.init(S.kakaoKey);
-      KS.Share.sendDefault({ objectType: 'text', text, link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '길 보기' });
+      KS.Share.sendDefault({ objectType: 'text', text, link: { mobileWebUrl: url, webUrl: url }, buttonTitle });
       return 'kakao';
     } catch (e) { console.warn('kakao share', e); }
   }
