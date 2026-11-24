@@ -784,11 +784,12 @@ function guideUrl(g) {
   return location.origin + location.pathname + '?role=elder&go=' + encodeURIComponent(JSON.stringify(data));
 }
 function loadKakaoShare() {
-  if (window.Kakao && Kakao.Share) return Promise.resolve();
+  // 주의: 이 파일의 Kakao(지도용)와 이름이 겹쳐서, 공유 SDK는 window.Kakao로만 씀
+  if (window.Kakao && window.Kakao.init) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js';
-    s.onload = () => (window.Kakao && Kakao.Share ? resolve() : reject(new Error('sdk')));
+    s.onload = () => (window.Kakao && window.Kakao.init ? resolve() : reject(new Error('sdk')));
     s.onerror = () => reject(new Error('load'));
     document.head.appendChild(s);
     setTimeout(() => reject(new Error('timeout')), 10000);
@@ -802,8 +803,9 @@ async function shareGuide(g) {
   if (S.kakaoKey) {
     try {
       await loadKakaoShare();
-      if (!Kakao.isInitialized()) Kakao.init(S.kakaoKey);
-      Kakao.Share.sendDefault({ objectType: 'text', text, link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '길 보기' });
+      const KS = window.Kakao;
+      if (!KS.isInitialized()) KS.init(S.kakaoKey);
+      KS.Share.sendDefault({ objectType: 'text', text, link: { mobileWebUrl: url, webUrl: url }, buttonTitle: '길 보기' });
       return 'kakao';
     } catch (e) { console.warn('kakao share', e); }
   }
