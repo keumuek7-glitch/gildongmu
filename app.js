@@ -63,15 +63,23 @@ const Link = (() => {
   else window.addEventListener('storage', e => {
     if (e.key === 'gd_msg' && e.newValue) { try { deliver(JSON.parse(e.newValue)); } catch (err) {} }
   });
-  return {
+  const api = {
     send(type, data) {
-      const m = { type, data, t: Date.now() };
+      let from = '';
+      try { from = S.role || ''; } catch (e) {}
+      const m = { type, data, t: Date.now(), from };
       store.set('last_' + type, m);
+      store.set('seen_' + type, m.t);
       if (ch) ch.postMessage(m); else store.set('msg', m);
+      if (api.remote) api.remote(type, m); // 다른 휴대폰으로 (Relay)
     },
+    /* 다른 휴대폰에서 온 메시지 */
+    receive(m) { store.set('last_' + m.type, m); deliver(m); },
     on(h) { handlers.push(h); },
     last(type) { return store.get('last_' + type, null); },
+    remote: null,
   };
+  return api;
 })();
 
 /* ---------- 설정 ---------- */
@@ -85,6 +93,79 @@ const S = {
   alightM: store.get('alightM', 400),
   test: params.get('test') === '1' || store.get('test', false),
 };
+
+/* ---------- 두 휴대폰 연결 (Firebase Realtime Database 중계) ----------
+ * 두 휴대폰이 같은 '방'(긴 무작위 이름)을 공유하고, 메시지 종류마다 마지막 것 하나만 둡니다.
+ * 방 이름을 아는 휴대폰만 읽고 쓸 수 있습니다(데이터베이스 규칙에서 목록 보기는 막음).
+ * 받는 쪽 앱이 열려 있을 때만 바로 뜹니다(닫혀 있으면 다음에 열 때 받음). */
+const DB_DEFAULT = '';
+const Relay = (() => {
+  let es = null, state = 'off'; // off | connecting | on | error
+  const listeners = [];
+  const TRANSIENT = { viewed: 1, arrived: 1, alighted: 1 }; // 오래된 알림은 다시 띄우지 않음
+  const db = () => String(store.get('dbUrl', '') || DB_DEFAULT).replace(/\/+$/, '');
+  const room = () => store.get('room', '');
+  const ok = () => !!(db() && room());
+  const url = p => db() + '/rooms/' + room() + (p || '') + '.json';
+  function setState(s) { state = s; listeners.forEach(f => { try { f(s); } catch (e) {} }); }
+  function put(type, m) {
+    if (!ok()) return;
+    fetch(url('/' + type), { method: 'PUT', body: JSON.stringify(m) })
+      .then(r => { if (!r.ok) setState('error'); })
+      .catch(() => setState('error'));
+  }
+  function take(m) {
+    if (!m || typeof m !== 'object' || !m.type || !m.t || m.from === S.role) return;
+    if (m.t <= store.get('seen_' + m.type, 0)) return;
+    store.set('seen_' + m.type, m.t);
+    if (TRANSIENT[m.type] && Date.now() - m.t > 10 * 60 * 1000) { store.set('last_' + m.type, m); return; }
+    Link.receive(m);
+  }
+  function onData(e) {
+    let d; try { d = JSON.parse(e.data); } catch (err) { return; }
+    if (!d) return;
+    setState('on');
+    const parts = String(d.path || '/').split('/').filter(Boolean);
+    if (parts.length === 0) { if (d.data && typeof d.data === 'object') Object.keys(d.data).forEach(k => take(d.data[k])); }
+    else if (parts.length === 1 && e.type === 'put') take(d.data);
+  }
+  function stop() { if (es) { try { es.close(); } catch (e) {} es = null; } setState('off'); }
+  function start() {
+    stop();
+    if (!ok() || !window.EventSource) return;
+    setState('connecting');
+    es = new EventSource(url());
+    es.onopen = () => setState('on');
+    es.addEventListener('put', onData);
+    es.addEventListener('patch', onData);
+    es.addEventListener('cancel', () => setState('error')); // 규칙에서 막힘
+    es.onerror = () => setState(es && es.readyState === 2 ? 'error' : 'connecting');
+  }
+  function newRoom() {
+    const b = new Uint8Array(16); crypto.getRandomValues(b);
+    return btoa(String.fromCharCode.apply(null, b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  return {
+    ok, start, stop, put, newRoom,
+    hasDb: () => !!db(),
+    room,
+    join(r) { store.set('room', r); start(); },
+    leave() { store.del('room'); stop(); },
+    state: () => state,
+    onState(f) { listeners.push(f); },
+  };
+})();
+Link.remote = (type, m) => Relay.put(type, m);
+/* 연결 링크(?pair=방이름)로 열렸으면 이 휴대폰을 그 방에 넣음 */
+let pairedNow = false;
+(function readPair() {
+  const r = params.get('pair');
+  if (!r || !/^[A-Za-z0-9_-]{20,40}$/.test(r)) return;
+  store.set('room', r);
+  if (S.role) store.set('role', S.role);
+  pairedNow = true;
+  try { history.replaceState(history.state, '', location.pathname + (S.role ? '?role=' + S.role : '')); } catch (e) {}
+})();
 
 /* ---------- 공통 화면 전환 ---------- */
 let current = null, prevScreen = null;
@@ -517,12 +598,18 @@ $('#ehome-sendloc').onclick = async () => {
   banner('위치를 찾는 중', 3000);
   const pos = await currentPos();
   if (!pos) { banner('위치를 못 찾았어요. 위치 권한을 켜 주세요', 6000); return; }
+  if (Relay.ok()) { // 연결돼 있으면 앱 안에서 바로
+    Link.send('elderLoc', { lat: pos.lat, lng: pos.lng, acc: E.acc, heading: E.heading, t: Date.now(), shout: true });
+    banner('가족에게 보냈어요', 5000);
+    return;
+  }
   const r = await sendKakao('지금 여기 있어요', familyUrl('loc'), '위치 보기');
   banner(r === 'kakao' ? '카톡을 열었어요. 가족을 골라 주세요' : r === 'copied' ? '복사했어요. 카톡에 붙여 넣어 주세요' : r === 'cancel' ? '보내지 않았어요' : r === 'fail' ? '보내지 못했어요' : '보낼 곳을 골라 주세요', 6000);
 };
 $('#arrive-tell').onclick = async () => {
   const name = E.trip && E.trip.dest ? E.trip.dest.name : '';
-  Link.send('arrived', { name }); // 같은 휴대폰 시험용
+  Link.send('arrived', { name }); // 연결돼 있으면 가족 휴대폰으로도 감
+  if (Relay.ok()) { banner('가족에게 알렸어요', 5000); return; }
   const r = await sendKakao((name ? name + '에 ' : '') + '도착했어요', familyUrl('arrived'), '확인');
   banner(r === 'kakao' ? '카톡을 열었어요. 가족을 골라 주세요' : r === 'copied' ? '복사했어요. 카톡에 붙여 넣어 주세요' : r === 'cancel' ? '보내지 않았어요' : r === 'fail' ? '보내지 못했어요' : '보낼 곳을 골라 주세요', 6000);
 };
@@ -860,13 +947,23 @@ $('#cdir-next').onclick = () => {
 };
 const DIR8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
 onShow['s-csend'] = () => {
+  const direct = Relay.ok();
+  $('#send-choice').hidden = direct;
+  $('#send-direct').hidden = !direct;
   $('#pv-phrase').textContent = C.phrase;
   $('#pv-dir').textContent = DIR8[Math.round(C.pan / 45) % 8] + '쪽 ' + C.pan + '°';
 };
 $('#csend-go').onclick = async () => {
+  const g = { lat: +C.elder.lat.toFixed(6), lng: +C.elder.lng.toFixed(6), pan: Math.round(C.pan), phrase: C.phrase, t: Date.now() };
+  if (Relay.ok()) { // 연결돼 있으면 앱 안에서 바로 (내릴 곳·도착도 함께)
+    if (C.trip && C.trip.dest) Link.send('trip', C.trip);
+    Link.send('guide', g);
+    banner((S.elderName || '어르신') + ' 휴대폰으로 보냈어요', 6000);
+    show('s-cmap');
+    return;
+  }
   const app = $('#send-app').checked, kk = $('#send-kakao').checked;
   if (!app && !kk) { banner('보낼 곳을 골라 주세요'); return; }
-  const g = { lat: +C.elder.lat.toFixed(6), lng: +C.elder.lng.toFixed(6), pan: Math.round(C.pan), phrase: C.phrase, t: Date.now() };
   if (app) Link.send('guide', g);
   let msg = app ? '이 휴대폰의 어르신 화면에 보냈어요' : '';
   if (kk) {
@@ -931,7 +1028,10 @@ function showLinkBox(url) {
 }
 
 function childOnMessage(m) {
-  if (m.type === 'elderLoc') { C.elder = m.data; if (current === 's-cmap') drawChildMap(); }
+  if (m.type === 'elderLoc') {
+    C.elder = m.data; if (current === 's-cmap') drawChildMap();
+    if (m.data && m.data.shout) { banner(josa(S.elderName || '어르신', '이', '가') + ' 지금 위치를 보냈어요', 8000); buzz([200, 100, 200]); }
+  }
   else if (m.type === 'arrived') { banner(josa(S.elderName || '어르신', '이', '가') + ' 도착했어요', 8000); buzz([200, 100, 200]); }
   else if (m.type === 'alighted') { banner(josa(S.elderName || '어르신', '이', '가') + ' 버스에서 내렸어요', 6000); drawChildMap(); }
 }
@@ -973,6 +1073,46 @@ $('#set-share-toggle').onclick = () => {
   if (E.sharing) sendElderLoc(true);
 };
 $('#set-chrome').onclick = () => openInChrome();
+
+/* 두 휴대폰 연결: 가족이 방을 만들고 연결 링크를 카톡으로 한 번 보냄 */
+function updatePairStatus() {
+  const el = $('#set-pair-status');
+  if (!el) return;
+  const st = Relay.state();
+  el.textContent = !Relay.hasDb() ? '연결 서버 주소가 아직 없어요'
+    : !Relay.room() ? (S.role === 'child' ? '아직 연결 안 됨: 아래 버튼으로 어르신 폰에 연결 링크를 보내요' : '아직 연결 안 됨: 가족이 보낸 연결 링크를 눌러요')
+    : st === 'on' ? '연결됨: 메시지가 앱 안에서 오가요'
+    : st === 'error' ? '연결 안 됨: 인터넷이나 서버 설정을 확인해요'
+    : '연결하는 중';
+  $('#set-unpair').hidden = !Relay.room();
+  $('#set-pair').textContent = Relay.room() ? '연결 링크 다시 보내기' : '어르신 폰과 연결하기 (카톡으로 한 번)';
+}
+Relay.onState(updatePairStatus);
+const _showSettings = onShow['s-settings'];
+onShow['s-settings'] = () => { _showSettings(); updatePairStatus(); };
+$('#set-pair').onclick = async () => {
+  if (!Relay.hasDb()) { banner('연결 서버 주소가 아직 없어요'); return; }
+  const r = Relay.room() || Relay.newRoom();
+  Relay.join(r);
+  if (C.trip && C.trip.dest) Link.send('trip', C.trip);
+  const url = location.origin + location.pathname + '?role=elder&pair=' + r;
+  const res = await sendKakao((S.elderName || '어르신') + '께: 이 링크를 한 번 누르면 길동무가 가족 휴대폰과 연결돼요', url, '연결하기');
+  if (res === 'fail') {
+    let box = $('#pair-box');
+    if (!box) { box = document.createElement('textarea'); box.id = 'pair-box'; box.readOnly = true; box.className = 'plain-input'; $('#set-pair').after(box); }
+    box.value = url; box.focus(); box.select();
+    banner('아래 링크를 길게 눌러 복사해 카톡으로 보내 주세요', 7000);
+  } else {
+    banner(res === 'kakao' ? '카톡을 열었어요. 어르신 대화방을 골라 주세요' : res === 'copied' ? '복사했어요. 카톡에 붙여 넣어 주세요' : res === 'cancel' ? '보내지 않았어요' : '보낼 곳을 골라 주세요', 6000);
+  }
+  updatePairStatus();
+};
+$('#set-unpair').onclick = () => {
+  if (!confirm('연결을 끊을까요? 다시 연결하려면 연결 링크를 새로 보내야 해요')) return;
+  Relay.leave();
+  updatePairStatus();
+  banner('연결을 끊었어요');
+};
 $('#set-sound').onclick = () => { chime('arrive'); setTimeout(() => speak('도착했어요', 'none'), 1000); };
 $('#set-role').onclick = () => { store.del('role'); location.href = location.pathname; };
 
@@ -987,11 +1127,9 @@ Link.on(m => { if (S.role === 'elder') elderOnMessage(m); else if (S.role === 'c
 
 /* 카톡 안 브라우저로 열리면 휴대폰 기본 브라우저(크롬 등)로 다시 엶:
  * 등록·위치 허가가 한곳에 남고 말소리도 쓸 수 있게.
- * 단, 앱이 보낸 링크(주소에 role이 있음)는 어르신·가족 모두 카톡 안에서 그대로 엶:
- * 링크를 열 때마다 브라우저에 새 탭이 쌓이는 문제(삼성 인터넷 99개 한도)를 피함.
- * 대신 카톡 안에서는 말소리가 안 나고 알림음·진동·글자로 대신함 */
+ * 두 휴대폰을 연결(Relay)하면 메시지는 앱 안에서 오가므로 카톡 링크는 처음 연결 때 한 번만 씀 */
 function leaveKakao() {
-  if (!inKakao || params.get('inapp') === '1' || params.get('role')) return false;
+  if (!inKakao || params.get('inapp') === '1') return false;
   const url = location.href.split('#')[0];
   document.body.innerHTML = '<section class="screen pad center active" style="justify-content:center;gap:24px">'
     + '<h1 class="big">크롬으로 여는 중</h1>'
@@ -1009,6 +1147,8 @@ function boot() {
   if (S.role === 'elder') elderStart();
   else if (S.role === 'child') childStart();
   else show('s-role');
+  if (S.role) Relay.start();
+  if (pairedNow) setTimeout(() => banner(Relay.hasDb() ? '가족과 연결됐어요' : '연결 서버 주소가 아직 없어요', 6000), 600);
 }
 if (!leaveKakao()) boot();
 

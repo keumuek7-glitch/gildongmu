@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; connect-src 'self' https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; frame-src https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; manifest-src 'self'; worker-src 'self' blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; connect-src 'self' https://*.firebasedatabase.app https://*.firebaseio.com https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; frame-src https://*.kakao.com https://*.daum.net https://*.daumcdn.net https://*.kakaocdn.net; manifest-src 'self'; worker-src 'self' blob:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1546C8">
@@ -209,12 +209,15 @@
     <div class="pv-rv"><svg class="rv-arrow" viewBox="0 0 160 260" aria-hidden="true"><path d="M80 250 L 80 50"/><path d="M30 95 L 80 40 L 130 95"/></svg><span class="pv-dir" id="pv-dir"></span></div>
     <span class="pv-phrase" id="pv-phrase">곧장 가요</span>
   </div>
-  <span class="label">보낼 곳</span>
-  <div class="row gap">
-    <label class="check"><input type="checkbox" id="send-kakao" checked>카톡으로</label>
-    <label class="check"><input type="checkbox" id="send-app">이 휴대폰 (시험)</label>
+  <span class="hint" id="send-direct" hidden>연결된 <span class="elder-name">어머니</span> 휴대폰에 바로 떠요 (길동무가 열려 있을 때)</span>
+  <div id="send-choice" style="display:flex;flex-direction:column;gap:12px">
+    <span class="label">보낼 곳</span>
+    <div class="row gap">
+      <label class="check"><input type="checkbox" id="send-kakao" checked>카톡으로</label>
+      <label class="check"><input type="checkbox" id="send-app">이 휴대폰 (시험)</label>
+    </div>
+    <span class="hint">카톡으로 받은 「길 보기」를 누르면 어르신 휴대폰에 로드뷰와 방향이 떠요. 「이 휴대폰」은 한 휴대폰으로 시험할 때만 써요.</span>
   </div>
-  <span class="hint">카톡으로 받은 「길 보기」를 누르면 어르신 휴대폰에 로드뷰와 방향이 떠요. 「이 휴대폰」은 한 휴대폰으로 시험할 때만 써요.</span>
   <div class="grow"></div>
   <button class="btn primary big-btn" id="csend-go">보내기</button>
   <button class="btn outline" data-go="s-cdir">다시 고르기</button>
@@ -233,6 +236,12 @@
     <label for="set-family-phone">가족 전화번호</label>
     <input id="set-family-phone" type="tel" placeholder="010-0000-0000">
     <button class="btn outline" id="set-share-toggle">위치 보내기 끄기</button>
+  </div>
+  <div class="set-group">
+    <span class="label">두 휴대폰 연결</span>
+    <span class="hint" id="set-pair-status"></span>
+    <button class="btn outline child-only" id="set-pair">어르신 폰과 연결하기 (카톡으로 한 번)</button>
+    <button class="btn plain" id="set-unpair" hidden>연결 끊기</button>
   </div>
   <div class="set-group">
     <label for="set-kakao">카카오 JavaScript 키 (이 휴대폰에만 저장)</label>
