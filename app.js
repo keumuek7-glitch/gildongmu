@@ -183,9 +183,10 @@ function speak(text, kind) {
     if (started) return;
     speechOk = false;
     if (kind !== 'none') chime(kind);
-    if (!speechHintShown) {
+    // 카톡 안에서는 말소리가 안 나는 게 정해진 일이라 안내를 띄우지 않음(알림음·글자로 대신)
+    if (!speechHintShown && !inKakao) {
       speechHintShown = true;
-      banner(inKakao ? '카톡 안에서는 말소리가 안 나요. 설정에서 「크롬으로 열기」를 눌러요' : '이 휴대폰 브라우저는 말소리를 못 내요', 7000);
+      banner('이 휴대폰 브라우저는 말소리를 못 내요', 7000);
     }
   }, speechOk === false ? 0 : 1200);
 }
@@ -986,10 +987,11 @@ Link.on(m => { if (S.role === 'elder') elderOnMessage(m); else if (S.role === 'c
 
 /* 카톡 안 브라우저로 열리면 휴대폰 기본 브라우저(크롬 등)로 다시 엶:
  * 등록·위치 허가가 한곳에 남고 말소리도 쓸 수 있게.
- * 가족(자녀)은 말소리가 필요 없으므로 카톡 안에서 그대로 엶:
- * 링크를 열 때마다 브라우저에 새 탭이 쌓이는 문제(삼성 인터넷 99개 한도)를 피함 */
+ * 단, 앱이 보낸 링크(주소에 role이 있음)는 어르신·가족 모두 카톡 안에서 그대로 엶:
+ * 링크를 열 때마다 브라우저에 새 탭이 쌓이는 문제(삼성 인터넷 99개 한도)를 피함.
+ * 대신 카톡 안에서는 말소리가 안 나고 알림음·진동·글자로 대신함 */
 function leaveKakao() {
-  if (!inKakao || params.get('inapp') === '1' || S.role === 'child') return false;
+  if (!inKakao || params.get('inapp') === '1' || params.get('role')) return false;
   const url = location.href.split('#')[0];
   document.body.innerHTML = '<section class="screen pad center active" style="justify-content:center;gap:24px">'
     + '<h1 class="big">크롬으로 여는 중</h1>'
