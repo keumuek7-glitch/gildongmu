@@ -13,7 +13,8 @@ svg{display:block}
 
 .screen{display:none;min-height:100dvh;max-width:480px;margin:0 auto;flex-direction:column;gap:14px}
 .screen.active{display:flex}
-.pad{padding:max(20px,env(safe-area-inset-top)) 20px max(20px,env(safe-area-inset-bottom))}
+/* 아래 96px: 넷리파이가 화면 오른쪽 아래에 넣는 표시에 버튼이 가리지 않게 */
+.pad{padding:max(20px,env(safe-area-inset-top)) 20px calc(96px + env(safe-area-inset-bottom))}
 .center{align-items:center;text-align:center}
 .grow{flex-grow:1}
 .row{display:flex;align-items:center}
@@ -83,7 +84,7 @@ h1.mid{font-size:26px;word-break:keep-all}
 .compass{align-items:center;gap:6px}
 .dest-bar{align-self:stretch;display:flex;align-items:center;justify-content:center;gap:12px;min-height:76px;border-radius:18px;background:var(--green);color:var(--white);font-size:32px;font-weight:900;padding:0 12px}
 .dest-bar svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-#cmp-svg{width:100%;max-width:350px;height:auto;max-height:50dvh}
+#cmp-svg{width:100%;max-width:350px;height:auto;max-height:44dvh}
 .cmp-path{stroke:var(--green);stroke-width:10;stroke-dasharray:18 14;stroke-linecap:round;fill:none}
 .cmp-path.head{stroke-dasharray:none;stroke-linejoin:round}
 .cmp-arrow-line{stroke:var(--blue);stroke-width:20;stroke-linecap:round;fill:none}
@@ -181,3 +182,12 @@ body[data-role=elder] #banner{top:auto;bottom:max(130px,env(safe-area-inset-bott
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
 @keyframes pulse{0%,100%{background:var(--orange)}50%{background:#9A3412}}
 @media (prefers-reduced-motion: reduce){.blink,.share-pill .dot,.alight.now{animation:none}}
+
+/* 위쪽 설정·뒤로 버튼 */
+.top-row{gap:10px}
+.set-btn,.back-btn{display:inline-flex;align-items:center;gap:6px;min-height:48px;padding:0 14px;border:2px solid var(--line);border-radius:12px;background:var(--white);color:var(--ink);font:inherit;font-size:18px;font-weight:700;cursor:pointer;flex-shrink:0}
+.set-btn svg,.back-btn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.back-btn{align-self:flex-start}
+input.need{outline:4px solid var(--orange,#E8772E);outline-offset:2px}
+/* 설정 화면에서는 알림 띠를 위로 (저장 버튼을 가리지 않게) */
+body #banner.top{top:max(12px,env(safe-area-inset-top));bottom:auto}

@@ -89,18 +89,54 @@ const S = {
 /* ---------- 공통 화면 전환 ---------- */
 let current = null, prevScreen = null;
 const onShow = {};
-function show(id) {
+/* 뒤로 가기: 첫 화면(어르신 대기·가족 지도·처음 고르기·동의)은 바닥(0단계),
+ * 나머지 화면은 휴대폰 뒤로 버튼으로 한 단계씩 돌아갑니다. */
+const BASE_SCREENS = ['s-role', 's-consent', 's-ehome', 's-cmap'];
+let navDepth = 0;
+function homeScreen() { return S.role === 'elder' ? 's-ehome' : S.role === 'child' ? 's-cmap' : 's-role'; }
+function show(id, fromPop) {
   if (current === id) return;
+  if (!fromPop) {
+    try {
+      if (BASE_SCREENS.includes(id)) {
+        if (navDepth > 0) { const d = navDepth; navDepth = 0; pendingHome = id; history.go(-d); }
+        else history.replaceState({ s: id, d: 0 }, '');
+      } else {
+        navDepth += 1;
+        history.pushState({ s: id, d: navDepth }, '');
+      }
+    } catch (e) {}
+  }
   if (current && current !== 's-settings') prevScreen = current;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   current = id;
   window.scrollTo(0, 0);
   if (onShow[id]) onShow[id]();
 }
+let pendingHome = null;
+window.addEventListener('popstate', e => {
+  const st = e.state || {};
+  navDepth = st.d || 0;
+  let id;
+  if (navDepth === 0) {
+    // 바닥으로 돌아옴: 앱이 일부러 바닥 화면으로 보낸 경우 그 화면, 아니면 첫 화면
+    id = pendingHome || (current && BASE_SCREENS.includes(current) ? current : homeScreen());
+    pendingHome = null;
+    try { history.replaceState({ s: id, d: 0 }, ''); } catch (err) {}
+  } else {
+    id = st.s && document.getElementById(st.s) ? st.s : homeScreen();
+  }
+  show(id, true);
+});
+function goBack() {
+  if (navDepth > 0) history.back();
+  else show(homeScreen());
+}
 let bannerTimer = null;
 function banner(text, ms = 4000) {
   const b = $('#banner');
   b.textContent = text; b.hidden = false;
+  b.classList.toggle('top', current === 's-settings');
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => { b.hidden = true; }, ms);
 }
@@ -129,8 +165,18 @@ function applyNames() {
 document.addEventListener('click', e => {
   const go = e.target.closest('[data-go]');
   if (go) { show(go.dataset.go); return; }
+  if (e.target.closest('[data-back]')) { goBack(); return; }
   const call = e.target.closest('[data-call],[data-call-elder]');
-  if (call && !call.getAttribute('href')) { e.preventDefault(); banner('설정에서 전화번호를 넣어 주세요'); }
+  if (call && !call.getAttribute('href')) {
+    e.preventDefault();
+    // 번호가 없으면 바로 설정 화면의 전화번호 칸으로
+    const forElder = call.hasAttribute('data-call');
+    show('s-settings');
+    const f = $(forElder ? '#set-family-phone' : '#set-elder-phone');
+    f.classList.add('need');
+    setTimeout(() => { f.scrollIntoView({ block: 'center' }); f.focus(); }, 50);
+    banner((forElder ? '가족' : '어르신') + ' 전화번호를 넣고 저장을 눌러요', 5000);
+  }
 });
 
 /* ---------- 카카오 지도 (키가 있을 때만) ---------- */
@@ -700,10 +746,11 @@ $('#set-save').onclick = () => {
   S.test = $('#set-test').checked; store.set('test', S.test);
   applyNames(); setupTestPanel();
   if (keyChanged) { location.reload(); return; }
+  $$('.need').forEach(el => el.classList.remove('need'));
   banner('저장했어요');
-  show(prevScreen || (S.role === 'elder' ? 's-ehome' : 's-cmap'));
+  goBack();
 };
-$('#set-back').onclick = () => show(prevScreen || (S.role === 'elder' ? 's-ehome' : 's-cmap'));
+$('#set-back').onclick = () => { $$('.need').forEach(el => el.classList.remove('need')); goBack(); };
 $('#set-share-toggle').onclick = () => {
   E.sharing = !E.sharing; store.set('sharing', E.sharing);
   $('#set-share-toggle').textContent = E.sharing ? '위치 보내기 끄기' : '위치 보내기 켜기';
