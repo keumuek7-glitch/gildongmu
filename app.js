@@ -972,6 +972,20 @@ $$('[data-role-pick]').forEach(b => b.onclick = () => {
 });
 Link.on(m => { if (S.role === 'elder') elderOnMessage(m); else if (S.role === 'child') childOnMessage(m); });
 
+/* 카톡 안 브라우저로 열리면 휴대폰 기본 브라우저(크롬 등)로 다시 엶:
+ * 등록·위치 허가가 한곳에 남고 말소리도 쓸 수 있게 */
+function leaveKakao() {
+  if (!inKakao || params.get('inapp') === '1') return false;
+  const url = location.href.split('#')[0];
+  document.body.innerHTML = '<section class="screen pad center active" style="justify-content:center;gap:24px">'
+    + '<h1 class="big">크롬으로 여는 중</h1>'
+    + '<p style="font-size:20px;margin:0">안 열리면 오른쪽 위 ⋮ 를 눌러<br>「다른 브라우저로 열기」를 골라요</p>'
+    + '<a class="btn primary huge" id="kk-open">크롬으로 열기</a></section>';
+  const go = () => { location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url); };
+  document.getElementById('kk-open').onclick = go;
+  go();
+  return true;
+}
 function boot() {
   document.body.dataset.role = S.role || '';
   applyNames();
@@ -980,7 +994,7 @@ function boot() {
   else if (S.role === 'child') childStart();
   else show('s-role');
 }
-boot();
+if (!leaveKakao()) boot();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
