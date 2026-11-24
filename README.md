@@ -32,6 +32,7 @@
 index.html, app.css, app.js (앱 전체), manifest.webmanifest·sw.js·icon-*.png (휴대폰 홈 화면 설치용)
 
 ## 배포
+- 2026-11-24부터 GitHub Pages: https://keumuek7-glitch.github.io/gildongmu/ (main 푸시 시 자동). 넷리파이는 무료 크레딧 초과로 배포가 멈춤. 보안 설정(CSP)은 index.html 안 meta 태그.
 - 정적 파일 그대로 (빌드 없음), Netlify publish 폴더 `.`
 - 주소: https://gildongmu.netlify.app
 - 카카오 키는 저장소에 넣지 않습니다. 앱 설정 화면에서 각 휴대폰에 넣습니다.
