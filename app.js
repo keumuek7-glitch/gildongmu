@@ -755,10 +755,22 @@ function drawChildMap() {
     upd.classList.toggle('stale', age > 60);
   }
   const ok = el && dest && dest.lat != null;
-  $('#cmap-empty').hidden = !!ok;
+  const kmap = $('#cmap-kmap');
+  if (el) kmap.href = 'https://map.kakao.com/link/map/' + encodeURIComponent((S.elderName || '어르신').slice(0, 10)) + ',' + (+el.lat).toFixed(6) + ',' + (+el.lng).toFixed(6);
+  kmap.hidden = !el;
+  $('#cmap-empty').hidden = !!el;
   $('#cmap-send').disabled = !el;
-  if (!ok) { svg.innerHTML = ''; return; }
   const W = 350, H = Math.max(260, Math.round(box.clientHeight / box.clientWidth * W) || 300);
+  if (!el) { svg.innerHTML = ''; return; }
+  if (!ok) { // 도착지가 없어도 어르신 위치는 받았다고 보여 줌
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const cx = W / 2, cy = H / 2;
+    svg.innerHTML = `
+      <text x="${cx}" y="34" text-anchor="middle" font-size="17" font-weight="700" fill="#555">도착지를 넣으면 방향이 보여요</text>
+      <circle cx="${cx}" cy="${cy}" r="16" fill="#1546C8" stroke="#fff" stroke-width="5"/>
+      <g><rect x="${cx - 40}" y="${cy + 20}" width="80" height="26" rx="8" fill="#111"/><text x="${cx}" y="${cy + 39}" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">${escapeHtml((S.elderName || '어르신').slice(0, 5))}</text></g>`;
+    return;
+  }
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const b = bearingDeg(el, dest);
   const d = distM(el, dest);
