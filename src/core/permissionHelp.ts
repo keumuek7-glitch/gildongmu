@@ -37,10 +37,17 @@ export function permissionHelp(p: PermissionIssues): PermissionHelp | null {
   if (p.gps || p.insecure) {
     steps.push('폰 화면 위쪽을 아래로 내려서 "위치"가 켜져 있는지 확인해 주세요');
   }
-  steps.push('크롬 주소창 왼쪽의 작은 아이콘을 누르고 "권한"(또는 "사이트 설정")에 들어가 주세요');
-  if (p.gps || p.insecure) steps.push('"위치"를 "허용"으로 바꿔 주세요');
-  if (p.sensor || p.insecure) steps.push('"모션 센서"를 "허용"으로 바꿔 주세요');
-  steps.push('아이콘이 안 보이면: 크롬 오른쪽 위 점 세 개(⋮)를 누르고 "설정", "사이트 설정" 순서로 들어가서 같은 항목을 허용해 주세요');
+  // 갤럭시 크롬에서 확인(2026-11-26): 주소창 아이콘 → "권한" 안에는 쓴 적 있는 권한만 스위치로 나오고,
+  // 모션 센서는 처음부터 허용이라 그 목록에 없어요. 모션 센서는 크롬 설정의 "사이트 설정"에서만 바꿀 수 있어요.
+  if (p.gps || p.insecure) {
+    steps.push('크롬 주소창 왼쪽의 작은 아이콘을 누르고 "권한"에 들어가서 "위치" 스위치를 켜 주세요');
+  }
+  if (p.sensor || p.insecure) {
+    steps.push('크롬 오른쪽 위 점 세 개(⋮)를 누르고 "설정", "사이트 설정", "모션 센서" 순서로 들어가서 허용해 주세요');
+  }
+  if (p.gps || p.insecure) {
+    steps.push('"권한"이 안 보이면: 같은 "사이트 설정"에서 "위치"에 들어가 길동무 주소를 허용해 주세요');
+  }
   steps.push('길동무를 닫았다가 다시 열어 주세요');
   return { elder, familySteps: steps };
 }
