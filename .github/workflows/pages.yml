@@ -1,0 +1,55 @@
+# 길동무 새 앱을 빌드해서 GitHub Pages(https://keumuek7-glitch.github.io/gildongmu/)에 올립니다.
+# 처음 한 번: 저장소 Settings → Pages → Build and deployment → Source 를 "GitHub Actions" 로 바꿔야 합니다.
+# 기존 앱은 /gildongmu/legacy/ 에 그대로 함께 올립니다.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - name: Build (Pages 주소, 서버 없이 시연 경로)
+        run: npx vite build
+        env:
+          VITE_BASE: /gildongmu/
+          VITE_STATIC_DEMO: 'true'
+      - name: 기존 앱을 legacy/ 로 함께 올리기
+        run: |
+          mkdir -p dist/legacy
+          cp legacy/index.html legacy/app.js legacy/app.css legacy/sw.js legacy/manifest.webmanifest legacy/*.png dist/legacy/
+          touch dist/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
