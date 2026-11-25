@@ -4,6 +4,7 @@ import { STATIC_DEMO } from './routeApiClient';
 import { RouteCache } from './routeCache';
 import { createRouteService, pickProvider } from './routeService';
 import { findLocalSubwayRoutes } from './subwayLocal';
+import { findWalkOnlyRoute } from './walkRouter';
 
 /** 앱이 실제로 쓰는 길 찾기(폰의 저장소 사용). 순수 로직은 routeService.ts 에 있습니다. */
 export const routeCache = new RouteCache(gdStore);
@@ -23,4 +24,6 @@ export const routeService = createRouteService({
   limit: dailyLimit,
   // 서울 지하철만 타는 길은 앱이 먼저 직접 계산하고, 못 찾을 때만 바깥 길 찾기를 부릅니다.
   local: findLocalSubwayRoutes,
+  // 1km 안쪽 가까운 곳은 걸어서 가는 길만 앱이 직접 보여 줍니다.
+  walk: async (c) => findWalkOnlyRoute(c),
 });
