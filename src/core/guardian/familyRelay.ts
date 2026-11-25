@@ -172,7 +172,7 @@ export function tripDestToRouteDest(trip: TripData | null): { name: string; x: n
 /* ── 카톡 링크로 길 안내 보내기 (연결 전, 기존 길동무 ?go= 링크와 같은 모양) ── */
 
 export interface GuideLinkData {
-  g: { lat: number; lng: number; pan: number; phrase: string };
+  g: { lat: number; lng: number; pan: number; phrase: string; tint?: 'dest' | 'left' | 'right' };
   trip: { stop: LatLngPlace | null; dest: LatLngPlace | null } | null;
 }
 
@@ -185,8 +185,13 @@ export function buildGuideLink(appUrl: string, data: GuideLinkData): string {
   return u.toString();
 }
 
+/** 가족이 고른 방향 색: 목적지 쪽=초록, 왼쪽=하늘색, 오른쪽=주황. 이상한 값은 목적지(초록) */
+export function parseGuideTint(v: unknown): 'dest' | 'left' | 'right' {
+  return v === 'left' || v === 'right' ? v : 'dest';
+}
+
 /** ?go= 링크 읽기. 이상하면 null */
-export function parseGuideLink(search: string): { guide: { lat: number; lng: number; pan: number; phrase: string }; trip: TripData | null } | null {
+export function parseGuideLink(search: string): { guide: { lat: number; lng: number; pan: number; phrase: string; tint?: 'dest' | 'left' | 'right' }; trip: TripData | null } | null {
   const raw = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('go');
   if (!raw) return null;
   let d: unknown;
@@ -198,7 +203,7 @@ export function parseGuideLink(search: string): { guide: { lat: number; lng: num
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   const trip = sanitizeTrip(o.trip);
   return {
-    guide: { lat, lng, pan: Number(o.g?.pan) || 0, phrase: String(o.g?.phrase || '곧장 가요').slice(0, 20) },
+    guide: { lat, lng, pan: Number(o.g?.pan) || 0, phrase: String(o.g?.phrase || '곧장 가요').slice(0, 20), tint: parseGuideTint(o.g?.tint) },
     trip: trip && trip.dest ? trip : null,
   };
 }

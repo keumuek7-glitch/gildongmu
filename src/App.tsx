@@ -577,7 +577,7 @@ export default function App() {
             }
             // 연결 전: 카톡 링크로 (어르신이 링크를 열면 로드뷰·방향·도착지가 뜸)
             const url = buildGuideLink(window.location.href, {
-              g: { lat: g.lat, lng: g.lng, pan: g.pan, phrase: g.phrase },
+              g: { lat: g.lat, lng: g.lng, pan: g.pan, phrase: g.phrase, tint: g.tint },
               trip: familyTrip?.dest ? { stop: familyTrip.stop, dest: familyTrip.dest } : null,
             });
             const r = await sendKakao(`어르신께 길 안내: ${g.phrase}\n「길 보기」나 링크를 누르면 로드뷰와 방향이 떠요`, url, '길 보기');
@@ -632,6 +632,7 @@ export default function App() {
         target={compassTarget}
         speak={speakText}
         testMode={testMode}
+        tint={familyGuide?.tint}
         onClose={() => setCompassTarget(null)}
         onRoadview={familyGuide ? () => { setCompassTarget(null); setGuideOpen(true); } : undefined}
         onArrived={() => {

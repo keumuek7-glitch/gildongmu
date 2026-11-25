@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { parseGuideTint } from '../core/guardian/familyRelay';
 import { kakaoReason, loadKakao, showRoadview } from '../services/kakaoMaps';
 
 /** 가족이 보낸 방향 안내 (기존 길동무의 guide 메시지) */
@@ -9,6 +10,8 @@ export interface FamilyGuide {
   pan: number;
   /** 한 마디 (예: "곧장 가요") */
   phrase: string;
+  /** 방향 색: 목적지 쪽=초록, 왼쪽=하늘색, 오른쪽=주황 */
+  tint: 'dest' | 'left' | 'right';
   t: number;
 }
 
@@ -23,6 +26,7 @@ export function sanitizeGuide(d: unknown): FamilyGuide | null {
     lng,
     pan: Number(o.pan) || 0,
     phrase: String(o.phrase || '곧장 가요').slice(0, 20),
+    tint: parseGuideTint(o.tint),
     t: Number(o.t) || Date.now(),
   };
 }
@@ -57,7 +61,7 @@ export function RoadviewGuide(props: {
   useEffect(() => { speak(guide.phrase); }, [guide, speak]);
 
   return (
-    <div className="rv-guide" role="dialog" aria-label="가족이 보낸 길 안내">
+    <div className={`rv-guide rv-guide--${guide.tint}`} role="dialog" aria-label="가족이 보낸 길 안내">
       <button className="btn btn--ghost compass__back" onClick={props.onClose}>← 뒤로</button>
       <div className="rv-guide__box">
         <div ref={box} className="rv-guide__view" />
