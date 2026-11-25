@@ -2,7 +2,7 @@
  * 역방향 탑승 예방.
  *  1) 타기 전: 안내판·버스 화면에서 방면/다음 역(정류장)을 직접 확인하게 묻고,
  *     "아니요"면 타지 말고 반대편으로 가도록 안내 (경로 데이터에 있는 이름만 씀)
- *  2) 버스 탄 뒤: GPS상 내릴 곳에서 계속 멀어지면 "반대로 가는 것 같아요"
+ *  2) 버스 탄 뒤: GPS상 내릴 곳에서 계속 멀어지면 "지나친 것 같아요"
  * 전철 탄 뒤 감지는 기존 상태 머신(WRONG_DIRECTION_SUSPECTED)이 맡습니다.
  */
 import type { RideLeg } from '../stateMachine/routeLegBuilder';
@@ -77,10 +77,36 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
   };
 }
 
-/* ── 버스 탄 뒤: 내릴 곳에서 멀어지는지 ───────────────── */
+/* ── 버스 탄 뒤: 내릴 곳을 지나쳤는지 (내릴 곳에서 멀어지는지) ───────────── */
 
-/** 가장 가까웠던 거리보다 이만큼 더 멀어지면 반대 방향으로 의심 */
+/** 기본 여유: 가장 가까웠던 거리보다 이만큼 더 멀어지면 '지나친 것 같아요' */
 export const BUS_AWAY_MARGIN_M = 300;
+/** 정류장 좌표가 없어 노선 모양을 모를 때 쓰는 여유 (기본보다 넉넉히) */
+export const BUS_AWAY_MARGIN_UNKNOWN_M = 600;
+
+/**
+ * 버스 노선 모양에 맞춘 여유 거리를 정합니다 (경로를 고를 때 한 번 계산).
+ * 빙 돌아가는 노선은 원래 길에서도 내릴 곳에서 잠깐 멀어지므로,
+ * 정류장 순서대로 '내릴 곳까지 거리'를 따라가며 그때까지 가장 가까웠던 거리보다
+ * 얼마나 멀어지는지(계획된 멀어짐)의 최댓값을 구해 기본 여유(300m)에 더합니다.
+ *   여유 = 300m + 계획된 멀어짐 최댓값
+ * 정류장 사이 굽은 길은 정류장 좌표로 알 수 없어 이 값보다 클 수 있으므로, 기본 300m를 그 몫으로 둡니다.
+ */
+export function busAwayMarginFor(
+  stops: Array<{ lat: number; lng: number }>,
+  alight: { lat: number; lng: number } | undefined,
+  dist: (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => number,
+): number {
+  if (!alight || stops.length < 2) return BUS_AWAY_MARGIN_UNKNOWN_M;
+  let min = Infinity;
+  let plannedAway = 0;
+  for (const st of stops) {
+    const d = dist(st, alight);
+    if (d < min) min = d;
+    else plannedAway = Math.max(plannedAway, d - min);
+  }
+  return Math.round(BUS_AWAY_MARGIN_M + plannedAway);
+}
 
 export interface AwayTracker {
   minDistM: number | null;
@@ -91,7 +117,7 @@ export const newAwayTracker = (): AwayTracker => ({ minDistM: null, warned: fals
 
 /**
  * 거리 하나를 넣고, 새로 경고해야 하면 true.
- * 버스 길이 구불구불해 잠깐 멀어질 수 있어 여유(300m)를 둡니다. 한 구간에 한 번만 경고.
+ * 버스 길이 구불구불해 잠깐 멀어질 수 있어 여유(margin, 노선마다 busAwayMarginFor로 계산)를 둡니다. 한 구간에 한 번만 경고.
  */
 export function trackAway(t: AwayTracker, distM: number, margin = BUS_AWAY_MARGIN_M): boolean {
   if (!Number.isFinite(distM)) return false;

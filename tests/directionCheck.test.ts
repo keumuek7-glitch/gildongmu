@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { boardingCheckFor, newAwayTracker, trackAway } from '../src/core/safety/directionCheck';
+import { boardingCheckFor, busAwayMarginFor, BUS_AWAY_MARGIN_UNKNOWN_M, newAwayTracker, trackAway } from '../src/core/safety/directionCheck';
+import { distM } from '../src/core/navigation/compass';
+import { buildRouteLegs, isRideLeg } from '../src/core/stateMachine/routeLegBuilder';
+import { parseOdsayResponse } from '../src/core/parser/odsayRouteParser';
+import sample from '../src/data/sampleOdsayResponse.json';
 import type { RideLeg } from '../src/core/stateMachine/routeLegBuilder';
 import { BUS_VISUAL } from '../src/core/metadata/subwayLineVisuals';
 
@@ -66,5 +70,32 @@ describe('조사', () => {
     expect(josa("'종로5가'", '를', '를')).toBe("'종로5가'를");
     expect(josa("'다음 역 제기동'", '을', '를')).toBe("'다음 역 제기동'을");
     expect(josa("'다음 정류장 B'", '을', '를')).toBe("'다음 정류장 B'를");
+  });
+});
+
+describe('노선 모양에 맞춘 지나침 여유', () => {
+  const alight = { lat: 37.6, lng: 127.0 };
+  const north = (m: number) => ({ lat: alight.lat - m / 111_195, lng: alight.lng }); // 내릴 곳 남쪽 m 지점
+  it('곧게 가까워지는 노선은 기본 300m', () => {
+    expect(busAwayMarginFor([north(2000), north(1500), north(800), north(0)], alight, distM)).toBe(300);
+  });
+  it('빙 돌아가며 700m 멀어졌다 오는 노선은 300 + 700 = 1000m', () => {
+    const m = busAwayMarginFor([north(1500), north(1000), north(1700), north(1200), north(0)], alight, distM);
+    expect(m).toBeGreaterThan(990);
+    expect(m).toBeLessThan(1010);
+  });
+  it('정류장 좌표를 모르면 넉넉히 600m', () => {
+    expect(busAwayMarginFor([], alight, distM)).toBe(BUS_AWAY_MARGIN_UNKNOWN_M);
+    expect(busAwayMarginFor([north(100)], undefined, distM)).toBe(BUS_AWAY_MARGIN_UNKNOWN_M);
+  });
+  it('여유가 1000m인 노선은 700m 멀어져도 경고하지 않고, 1100m면 경고', () => {
+    const t = newAwayTracker();
+    trackAway(t, 200, 1000);
+    expect(trackAway(t, 900, 1000)).toBe(false);
+    expect(trackAway(t, 1300, 1000)).toBe(true);
+  });
+  it('샘플 버스 구간에도 여유가 자동으로 붙는다 (300m 이상)', () => {
+    const bus = parseOdsayResponse(sample).flatMap((r) => buildRouteLegs(r)).filter(isRideLeg).find((l) => l.type === 'BUS_LEG');
+    expect(bus?.awayMarginM).toBeGreaterThanOrEqual(300);
   });
 });

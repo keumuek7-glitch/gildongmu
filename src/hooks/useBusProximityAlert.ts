@@ -18,7 +18,7 @@ export function useBusProximityAlert(opts: {
   nearM: number;
   simDistanceM: number | null;
   onAlert: (alert: AlightAlert, leg: RideLeg) => void;
-  /** 내릴 곳에서 계속 멀어질 때 (반대 방향 의심), 구간마다 한 번 */
+  /** 내릴 곳에서 계속 멀어질 때 (지나친 것 같음), 구간마다 한 번 */
   onAway?: (leg: RideLeg) => void;
 }): { stage: AlightStage; distanceM: number | null } {
   const { leg, active, nearM, simDistanceM } = opts;
@@ -43,7 +43,8 @@ export function useBusProximityAlert(opts: {
   const apply = (r: { stage: AlightStage; alert: AlightAlert | null }, d: number | null) => {
     if (d != null) {
       setDistanceM(d);
-      if (r.stage === 0 && trackAway(away.current, d) && leg) onAwayRef.current?.(leg);
+      // 하차 알림 단계와 상관없이 본다: 가까이 갔다가 멀어지면 내릴 곳을 지나친 것
+      if (trackAway(away.current, d, leg?.awayMarginM) && leg) onAwayRef.current?.(leg);
     }
     if (r.stage !== stageRef.current) {
       stageRef.current = r.stage;

@@ -43,6 +43,7 @@ import { getKakaoKey, setKakaoKey } from './services/kakaoMaps';
 import { useBusProximityAlert } from './hooks/useBusProximityAlert';
 import { BusAlightBanner } from './components/BusAlightBanner';
 import { sanitizeNearM, type AlightAlert } from './core/navigation/proximityAlight';
+import { josa } from './core/safety/directionCheck';
 
 type Screen = 'HOME' | 'CHOICE' | 'GUIDE';
 interface Dest { name: string; x: number; y: number }
@@ -338,9 +339,10 @@ export default function App() {
       speech.speak(`${alert.text}. 내릴 곳은 ${leg.alightName}`);
     },
     onAway: (leg) => {
+      setBusAlert(null);
       setBusAway(true);
       vibrate([500, 200, 500]);
-      speech.speak(`${leg.alightName}에서 멀어지고 있어요. 반대로 가는 것 같아요. 다음 정류장에서 내려서 길을 다시 찾아요`);
+      speech.speak(`${josa(leg.alightName, '을', '를')} 지나친 것 같아요. 다음 정류장에서 내려서 길을 다시 찾아요`);
     },
   });
 
@@ -397,8 +399,10 @@ export default function App() {
       busNear: () => setBusSimM(350),
       busNow: () => setBusSimM(40),
       busAway: () => {
-        setBusSimM(1000);
-        setTimeout(() => setBusSimM(1400), 300);
+        // 내릴 곳 가까이 갔다가(80m) 노선 여유보다 더 멀어짐
+        const margin = busLeg?.awayMarginM ?? 300;
+        setBusSimM(80);
+        setTimeout(() => setBusSimM(80 + margin + 100), 300);
       },
       reset: () => {
         simOffsetRef.current = 0;
@@ -568,8 +572,8 @@ export default function App() {
           />
           {busAway && busLeg && !busAlert && (
             <div className="banner banner--warning" role="alert">
-              <p className="banner__title">반대로 가는 것 같아요</p>
-              <p>{busLeg.alightName}에서 멀어지고 있어요. 다음 정류장에서 내려서 길을 다시 찾아요.</p>
+              <p className="banner__title">지나친 것 같아요</p>
+              <p>{josa(busLeg.alightName, '을', '를')} 지나쳐 멀어지고 있어요. 다음 정류장에서 내려서 길을 다시 찾아요.</p>
               <button className="btn btn--primary" onClick={() => { setBusAway(false); reroute(); }}>
                 지금 위치에서 길 다시 찾기
               </button>

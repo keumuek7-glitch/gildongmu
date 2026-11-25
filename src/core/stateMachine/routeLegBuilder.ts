@@ -4,6 +4,8 @@ import { normalizeLineKey, type RailToRailGuide, type StationExitGuide } from '.
 import { transferGuideRepository, type TransferGuideRepository } from '../metadata/transferGuideRepository';
 import { SENIOR_WALK_FACTOR } from '../classifier/seniorRouteClassifier';
 import { mapSubwayStations, scaleHops } from './subwayStationMapper';
+import { busAwayMarginFor } from '../safety/directionCheck';
+import { distM } from '../navigation/compass';
 
 export interface RideLeg {
   id: string;
@@ -22,6 +24,8 @@ export interface RideLeg {
   way?: string;
   /** 버스만: 내릴 정류장 좌표 (좌표 하차 알림용, ODsay 정류장 x,y가 있을 때) */
   alightCoord?: { lat: number; lng: number };
+  /** 버스만: '지나친 것 같아요' 판단 여유(m). 노선 모양으로 자동 계산 (busAwayMarginFor) */
+  awayMarginM?: number;
   nextStation?: string;
   oppositeNeighbor?: string;
 }
@@ -52,6 +56,12 @@ function lastStopCoord(seg: RouteSegment): { lat: number; lng: number } | undefi
   const last = seg.stops?.[seg.stops.length - 1];
   if (!last || !Number.isFinite(last.x) || !Number.isFinite(last.y)) return undefined;
   return { lat: last.y!, lng: last.x! }; // ODsay x=경도, y=위도
+}
+
+function stopCoords(seg: RouteSegment): Array<{ lat: number; lng: number }> {
+  return (seg.stops ?? [])
+    .filter((st) => Number.isFinite(st.x) && Number.isFinite(st.y))
+    .map((st) => ({ lat: st.y!, lng: st.x! }));
 }
 
 function buildRide(seg: RouteSegment, id: string): RideLeg | null {
@@ -100,6 +110,7 @@ function buildRide(seg: RouteSegment, id: string): RideLeg | null {
       nextStation: stations[1],
       way: seg.way,
       alightCoord: lastStopCoord(seg),
+      awayMarginM: busAwayMarginFor(stopCoords(seg), lastStopCoord(seg), distM),
     };
   }
   return null;
