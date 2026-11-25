@@ -164,3 +164,9 @@ body { margin: 0; background: var(--bg); }
 .bus-alight__msg { font-size: 48px; font-weight: 900; margin: 0; }
 .bus-alight__btn { background: #fff; color: #9a3412; border-color: #fff; }
 .bus-alight__later { background: transparent; color: #fff; border-color: #fff; }
+
+/* ── 타기 전 방향 확인 (역방향 예방) ── */
+.direction-check__look { font-size: 30px; font-weight: 900; margin: 4px 0; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); background: #fff; text-align: center; }
+.direction-check__answers { display: flex; gap: 12px; }
+.check-result { font-size: 24px; font-weight: 800; margin: 0; padding: 12px; border-radius: var(--radius); background: var(--alert-bg); }
+.check-result--ok { background: var(--guardian-bg); }

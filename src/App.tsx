@@ -314,10 +314,12 @@ export default function App() {
     screen === 'GUIDE' && !!busLeg && !session?.finished && !!session?.transit && session.transit.phase !== 'WAITING_BOARDING';
   const [busSimM, setBusSimM] = useState<number | null>(null);
   const [busAlert, setBusAlert] = useState<AlightAlert | null>(null);
+  const [busAway, setBusAway] = useState(false);
   const alightNearM = useMemo(() => sanitizeNearM(gdStore.get('alightM', 400)), []);
   useEffect(() => {
     setBusSimM(null);
     setBusAlert(null);
+    setBusAway(false);
   }, [busLeg?.id]);
   useBusProximityAlert({
     leg: busLeg,
@@ -332,6 +334,11 @@ export default function App() {
       setBusAlert(alert);
       vibrate(alert.vibrate);
       speech.speak(`${alert.text}. 내릴 곳은 ${leg.alightName}`);
+    },
+    onAway: (leg) => {
+      setBusAway(true);
+      vibrate([500, 200, 500]);
+      speech.speak(`${leg.alightName}에서 멀어지고 있어요. 반대로 가는 것 같아요. 다음 정류장에서 내려서 길을 다시 찾아요`);
     },
   });
 
@@ -387,6 +394,10 @@ export default function App() {
       },
       busNear: () => setBusSimM(350),
       busNow: () => setBusSimM(40),
+      busAway: () => {
+        setBusSimM(1000);
+        setTimeout(() => setBusSimM(1400), 300);
+      },
       reset: () => {
         simOffsetRef.current = 0;
         setSimOffset(0);
@@ -530,6 +541,16 @@ export default function App() {
             onFinish={goHome}
             onCompass={setCompassTarget}
           />
+          {busAway && busLeg && !busAlert && (
+            <div className="banner banner--warning" role="alert">
+              <p className="banner__title">반대로 가는 것 같아요</p>
+              <p>{busLeg.alightName}에서 멀어지고 있어요. 다음 정류장에서 내려서 길을 다시 찾아요.</p>
+              <button className="btn btn--primary" onClick={() => { setBusAway(false); reroute(); }}>
+                지금 위치에서 길 다시 찾기
+              </button>
+              <button className="btn btn--secondary" onClick={() => setBusAway(false)}>괜찮아요, 맞게 가고 있어요</button>
+            </div>
+          )}
           {busAlert && busLeg && (
             <BusAlightBanner
               alert={busAlert}

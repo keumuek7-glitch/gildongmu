@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { currentLeg, type MultiLegState } from '../core/stateMachine/multiLegManager';
 import { isRideLeg, type RideLeg } from '../core/stateMachine/routeLegBuilder';
 import { currentTransitVM, remainingStops, type TransitState } from '../core/stateMachine/transitStateMachine';
+import { BoardingDirectionCheck } from '../components/BoardingDirectionCheck';
 import { arrivedVM } from '../core/tts/guidanceSpeechBuilder';
 import {
   AccessWalkCard,
@@ -57,9 +58,7 @@ function RideView(props: {
       )}
       <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
       {t.phase === 'WAITING_BOARDING' ? (
-        <button className="btn btn--primary" onClick={props.onBoarded}>
-          {leg.type === 'BUS_LEG' ? '버스를 탔어요' : '열차를 탔어요'}
-        </button>
+        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
       ) : t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
         <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
       ) : (

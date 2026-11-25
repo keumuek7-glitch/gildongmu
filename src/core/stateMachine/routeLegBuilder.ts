@@ -18,6 +18,8 @@ export interface RideLeg {
   hopSeconds: number[];
   expectedSec: number;
   quickDoor?: string;
+  /** 방면 (ODsay way, 경로 데이터에 있을 때만) */
+  way?: string;
   /** 버스만: 내릴 정류장 좌표 (좌표 하차 알림용, ODsay 정류장 x,y가 있을 때) */
   alightCoord?: { lat: number; lng: number };
   nextStation?: string;
@@ -76,6 +78,7 @@ function buildRide(seg: RouteSegment, id: string): RideLeg | null {
       hopSeconds,
       expectedSec: hopSeconds.reduce((a, b) => a + b, 0),
       quickDoor: seg.quickDoor,
+      way: seg.way,
       nextStation: mapped?.nextStation ?? stations[1],
       oppositeNeighbor: mapped?.oppositeNeighbor,
     };
@@ -95,6 +98,7 @@ function buildRide(seg: RouteSegment, id: string): RideLeg | null {
       hopSeconds,
       expectedSec: hopSeconds.reduce((a, b) => a + b, 0),
       nextStation: stations[1],
+      way: seg.way,
       alightCoord: lastStopCoord(seg),
     };
   }

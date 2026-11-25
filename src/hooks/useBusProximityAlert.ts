@@ -6,6 +6,7 @@ import {
   type AlightAlert,
   type AlightStage,
 } from '../core/navigation/proximityAlight';
+import { newAwayTracker, trackAway } from '../core/safety/directionCheck';
 
 /**
  * 버스를 탄 동안 GPS로 내릴 정류장까지 거리를 보고 하차 알림을 냅니다.
@@ -17,6 +18,8 @@ export function useBusProximityAlert(opts: {
   nearM: number;
   simDistanceM: number | null;
   onAlert: (alert: AlightAlert, leg: RideLeg) => void;
+  /** 내릴 곳에서 계속 멀어질 때 (반대 방향 의심), 구간마다 한 번 */
+  onAway?: (leg: RideLeg) => void;
 }): { stage: AlightStage; distanceM: number | null } {
   const { leg, active, nearM, simDistanceM } = opts;
   const [stage, setStage] = useState<AlightStage>(0);
@@ -24,17 +27,24 @@ export function useBusProximityAlert(opts: {
   const stageRef = useRef<AlightStage>(0);
   const onAlertRef = useRef(opts.onAlert);
   onAlertRef.current = opts.onAlert;
+  const onAwayRef = useRef(opts.onAway);
+  onAwayRef.current = opts.onAway;
+  const away = useRef(newAwayTracker());
 
   // 구간이 바뀌면 처음부터
   const legId = leg?.id;
   useEffect(() => {
     stageRef.current = 0;
+    away.current = newAwayTracker();
     setStage(0);
     setDistanceM(null);
   }, [legId]);
 
   const apply = (r: { stage: AlightStage; alert: AlightAlert | null }, d: number | null) => {
-    if (d != null) setDistanceM(d);
+    if (d != null) {
+      setDistanceM(d);
+      if (r.stage === 0 && trackAway(away.current, d) && leg) onAwayRef.current?.(leg);
+    }
     if (r.stage !== stageRef.current) {
       stageRef.current = r.stage;
       setStage(r.stage);
