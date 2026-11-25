@@ -38,20 +38,24 @@ const bus: RideLeg = {
   nextStation: 'B정류장',
 };
 
-describe('전철 2차 확인 (승강장): 현재역 ➡ 다음역 방향', () => {
-  it('탑승역 ➡ 다음 역 으로 묻는다', () => {
+describe('전철 2차 확인 (승강장): ○○역 쪽으로 가는 열차가 맞나요? (화살표 없이)', () => {
+  it('다음 역 이름으로 묻고, 화살표 대신 이름으로 확인하라는 안내를 붙인다', () => {
     const c = boardingCheckFor(base);
-    expect(c.question).toBe("'청량리역' ➡ '제기동역' 방향이 맞나요?");
+    expect(c.question).toBe("'제기동역' 쪽으로 가는 열차가 맞나요?");
+    expect(c.hint).toBe("화살표는 서 있는 자리마다 방향이 달라요. 안내판에서 '제기동' 글자를 찾으세요");
+    expect(`${c.question}${c.hint}${c.wrongTitle}${c.wrongLines.join('')}`).not.toMatch(/[➡⬅→←▶◀⇒]/);
     expect(c.yesLabel).toBe('네, 맞아요');
     expect(c.noLabel).toContain('잘 몰라요');
   });
   it('이미 "역"으로 끝나는 이름에는 역을 또 붙이지 않는다', () => {
-    const c = boardingCheckFor({ ...base, boardName: '서울역', nextStation: '남영' });
-    expect(c.question).toBe("'서울역' ➡ '남영역' 방향이 맞나요?");
+    const c = boardingCheckFor({ ...base, boardName: '서울역', nextStation: '남영역' });
+    expect(c.question).toBe("'남영역' 쪽으로 가는 열차가 맞나요?");
+    expect(c.hint).toContain("'남영' 글자");
   });
   it('다음 역을 모르면 방면으로 묻고, 방면도 모르면 내릴 곳 방향으로 묻는다 (없는 이름은 지어내지 않음)', () => {
     const withWay = boardingCheckFor({ ...base, nextStation: undefined, way: '서울역' });
     expect(withWay.question).toBe("'서울역 방면'이 맞나요?");
+    expect(withWay.hint).toContain("'서울역 방면' 글자");
     const noWay = boardingCheckFor({ ...base, nextStation: undefined });
     expect(noWay.question).toBe("'종로5가 방향'이 맞나요?");
   });

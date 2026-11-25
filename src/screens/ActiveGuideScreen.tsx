@@ -9,6 +9,7 @@ import {
   ExitGuidanceCard,
   GuidanceBody,
   LineBanner,
+  RouteStrip,
   TransferGuidanceCard,
   rideLabel,
   type SpeechBinding,
@@ -25,13 +26,16 @@ function RideView(props: {
   const { leg, t } = props;
   const vm = currentTransitVM(leg, t);
   return (
-    <div className="stack">
-      <LineBanner visual={leg.visual} label={rideLabel(leg)} />
-      {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 줍니다 */}
+    <div className="stack stack--fill">
+      {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 주고, 큰 노선 띠는 화면 아래에 둡니다 */}
       {t.phase === 'WAITING_BOARDING' ? (
-        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
+        <>
+          <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
+          <RouteStrip leg={leg} compact />
+        </>
       ) : (
         <>
+          <LineBanner visual={leg.visual} label={rideLabel(leg)} />
           <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
           {t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
             <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
@@ -85,7 +89,7 @@ export function ActiveGuideScreen(props: {
     const Card = leg.walkKind === 'TRANSFER' ? TransferGuidanceCard : leg.walkKind === 'EXIT' ? ExitGuidanceCard : AccessWalkCard;
     const target = leg.target;
     body = (
-      <div className="stack">
+      <div className="stack stack--fill">
         <Card
           key={leg.id}
           leg={leg}

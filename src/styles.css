@@ -225,7 +225,23 @@ button.chip.chip--on { background: var(--primary); color: var(--primary-fg); bor
 .route-card { padding: 22px 18px; }
 .rv-guide .big { font-size: 56px; line-height: 1.2; }
 .direction-check .card__title { font-size: 44px; }
+.direction-check--long .card__title { font-size: 36px; }
+.direction-check__hint { margin: 10px 0 0; font-size: 24px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow-wrap: break-word; }
 .line-banner--bar { min-height: 28px; padding: 0; }
+/* 큰 노선 띠: 걷기·타기 화면 아래쪽에 노선 색으로 크게 */
+.screen--guide { min-height: calc(100dvh - 112px - 24px); }
+.stack--fill { flex: 1 1 auto; }
+.screen--guide > .stack--fill > .stack--fill { flex: 1 1 auto; }
+.route-strip { margin-top: auto; border-radius: var(--radius); padding: 14px 14px 18px; text-align: center; border: 3px solid currentColor; }
+.route-strip__line { margin: 0 0 4px; font-size: 34px; font-weight: 900; line-height: 1.2; }
+.route-strip__stops { margin: 0; display: grid; grid-template-columns: max-content 1fr; align-items: baseline; gap: 4px 12px; text-align: left; }
+.route-strip__label { margin: 0; font-size: 22px; font-weight: 800; white-space: nowrap; opacity: .92; }
+.route-strip__stop { margin: 0; font-size: 36px; font-weight: 900; line-height: 1.2; word-break: keep-all; overflow-wrap: break-word; }
+.route-strip--compact { padding: 10px 12px 12px; }
+.route-strip--compact .route-strip__line { font-size: 28px; margin-bottom: 2px; }
+.route-strip--compact .route-strip__stops { gap: 2px 10px; }
+.route-strip--compact .route-strip__label { font-size: 19px; }
+.route-strip--compact .route-strip__stop { font-size: 30px; }
 /* 큰 글자가 낱말 중간에서 끊기지 않게 (어르신 화면) */
 .card__title, .check-result, .takeover__title, .bus-alight__msg, .screen__header h1,
 .route-card h2.route-card__line, .rv-guide .big, .big, .btn, .btn__label { word-break: keep-all; overflow-wrap: break-word; }
