@@ -18,6 +18,8 @@ export interface RideLeg {
   hopSeconds: number[];
   expectedSec: number;
   quickDoor?: string;
+  /** 버스만: 내릴 정류장 좌표 (좌표 하차 알림용, ODsay 정류장 x,y가 있을 때) */
+  alightCoord?: { lat: number; lng: number };
   nextStation?: string;
   oppositeNeighbor?: string;
 }
@@ -43,6 +45,12 @@ export type RouteLeg = RideLeg | WalkLeg;
 
 export const isRideLeg = (l: RouteLeg | undefined): l is RideLeg =>
   !!l && (l.type === 'SUBWAY_LEG' || l.type === 'BUS_LEG');
+
+function lastStopCoord(seg: RouteSegment): { lat: number; lng: number } | undefined {
+  const last = seg.stops?.[seg.stops.length - 1];
+  if (!last || !Number.isFinite(last.x) || !Number.isFinite(last.y)) return undefined;
+  return { lat: last.y!, lng: last.x! }; // ODsay x=경도, y=위도
+}
 
 function buildRide(seg: RouteSegment, id: string): RideLeg | null {
   const board = seg.startName ?? seg.stops?.[0]?.name ?? '';
@@ -87,6 +95,7 @@ function buildRide(seg: RouteSegment, id: string): RideLeg | null {
       hopSeconds,
       expectedSec: hopSeconds.reduce((a, b) => a + b, 0),
       nextStation: stations[1],
+      alightCoord: lastStopCoord(seg),
     };
   }
   return null;

@@ -39,6 +39,9 @@ import { PairingPanel } from './components/PairingPanel';
 import { CompassView, type CompassTarget } from './components/CompassView';
 import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
 import { getKakaoKey, setKakaoKey } from './services/kakaoMaps';
+import { useBusProximityAlert } from './hooks/useBusProximityAlert';
+import { BusAlightBanner } from './components/BusAlightBanner';
+import { sanitizeNearM, type AlightAlert } from './core/navigation/proximityAlight';
 
 type Screen = 'HOME' | 'CHOICE' | 'GUIDE';
 interface Dest { name: string; x: number; y: number }
@@ -304,6 +307,34 @@ export default function App() {
     if (s?.transit?.phase === 'WAITING_BOARDING') dispatch({ type: 'BOARDED', now: now() });
   }, [dispatch, now]);
 
+  // ── 버스 좌표 하차 알림 (기존 길동무: 400m 다음에 내려요, 60m 지금 내려요) ──
+  const curLeg = session ? currentLeg(session) : undefined;
+  const busLeg = curLeg && isRideLeg(curLeg) && curLeg.type === 'BUS_LEG' ? curLeg : undefined;
+  const busRiding =
+    screen === 'GUIDE' && !!busLeg && !session?.finished && !!session?.transit && session.transit.phase !== 'WAITING_BOARDING';
+  const [busSimM, setBusSimM] = useState<number | null>(null);
+  const [busAlert, setBusAlert] = useState<AlightAlert | null>(null);
+  const alightNearM = useMemo(() => sanitizeNearM(gdStore.get('alightM', 400)), []);
+  useEffect(() => {
+    setBusSimM(null);
+    setBusAlert(null);
+  }, [busLeg?.id]);
+  useBusProximityAlert({
+    leg: busLeg,
+    active: busRiding,
+    nearM: alightNearM,
+    simDistanceM: busSimM,
+    onAlert: (alert, leg) => {
+      const key = `busgps:${leg.id}:${alert.stage}`;
+      const spoken = sessionRef.current?.spokenKeys;
+      if (spoken?.has(key)) return;
+      spoken?.add(key);
+      setBusAlert(alert);
+      vibrate(alert.vibrate);
+      speech.speak(`${alert.text}. 내릴 곳은 ${leg.alightName}`);
+    },
+  });
+
   const devActions: DevActions = useMemo(
     () => ({
       board: () => ensureBoarded(),
@@ -354,6 +385,8 @@ export default function App() {
           setWarning(r.warning);
         }
       },
+      busNear: () => setBusSimM(350),
+      busNow: () => setBusSimM(40),
       reset: () => {
         simOffsetRef.current = 0;
         setSimOffset(0);
@@ -497,6 +530,17 @@ export default function App() {
             onFinish={goHome}
             onCompass={setCompassTarget}
           />
+          {busAlert && busLeg && (
+            <BusAlightBanner
+              alert={busAlert}
+              stopName={busLeg.alightName}
+              onAlighted={() => {
+                setBusAlert(null);
+                dispatch({ type: 'USER_ALIGHTED', now: now() });
+              }}
+              onDismiss={() => setBusAlert(null)}
+            />
+          )}
           {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
           {error && <p className="status status--error" role="alert">{error}</p>}
         </>
