@@ -64,10 +64,17 @@ function FamilyMap({ elder, dest }: { elder: ElderLoc; dest: LatLngPlace | null 
   );
 }
 
+/** 마지막으로 누른 방향 버튼: 버튼과 나침반 화살표가 같은 색이 됨 (목적지=초록, 왼쪽=하늘색, 오른쪽=주황) */
+type DirTint = 'dest' | 'left' | 'right';
+const TINT_ARROW: Record<DirTint, string> = { dest: '#15803d', left: '#0ea5e9', right: '#f97316' };
+
 /** 방향(8방향 다이얼 + 15° 조정)과 한 마디를 골라 어르신 폰에 보냄 */
 export function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onSend: (g: GuideToSend) => void; onClose: () => void }) {
   const destPan = () => (props.dest ? Math.round(bearingDeg(props.elder, props.dest)) : Math.round(props.elder.heading ?? 0));
   const [pan, setPan] = useState(destPan);
+  const [tint, setTint] = useState<DirTint | null>(null);
+  const arrowColor = tint ? TINT_ARROW[tint] : '#1546C8';
+  const tintBtn = (t: DirTint) => `btn btn--secondary ${tint === t ? `btn--tint-${t}` : ''}`;
   const [phrase, setPhrase] = useState<string>(PHRASES[0]);
   const [custom, setCustom] = useState('');
   const finalPhrase = (custom.trim() || phrase).slice(0, PHRASE_MAX);
@@ -82,18 +89,18 @@ export function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | nu
           return <text key={n} x={100 + 74 * Math.sin(a)} y={100 - 74 * Math.cos(a) + 6} textAnchor="middle" fontSize="18" fontWeight="700" fill="#777">{n}</text>;
         })}
         <g transform={`rotate(${pan} 100 100)`}>
-          <path d="M100 160 L 100 40" stroke="#1546C8" strokeWidth="10" strokeLinecap="round" />
-          <path d="M80 62 L 100 34 L 120 62" stroke="#1546C8" strokeWidth="10" strokeLinecap="round" fill="none" />
+          <path d="M100 160 L 100 40" stroke={arrowColor} strokeWidth="10" strokeLinecap="round" />
+          <path d="M80 62 L 100 34 L 120 62" stroke={arrowColor} strokeWidth="10" strokeLinecap="round" fill="none" />
         </g>
       </svg>
       <p className="hint">{dirName(pan)}쪽 {pan}°</p>
       <div className="direction-check__answers">
-        <button className="btn btn--secondary" onClick={() => setPan(norm360(pan - 15))}>왼쪽</button>
-        <button className="btn btn--secondary" onClick={() => setPan(destPan())}>목적지 쪽</button>
-        <button className="btn btn--secondary" onClick={() => setPan(norm360(pan + 15))}>오른쪽</button>
+        <button className={tintBtn('left')} onClick={() => { setPan(norm360(pan - 15)); setTint('left'); }}>왼쪽</button>
+        <button className={tintBtn('dest')} onClick={() => { setPan(destPan()); setTint('dest'); }}>목적지 쪽</button>
+        <button className={tintBtn('right')} onClick={() => { setPan(norm360(pan + 15)); setTint('right'); }}>오른쪽</button>
       </div>
       <p className="card__title">한 마디 고르기</p>
-      <div className="chips">
+      <div className="phrase-grid">
         {PHRASES.map((p) => (
           <button key={p} className={`chip ${!custom.trim() && phrase === p ? 'chip--on' : ''}`} onClick={() => { setPhrase(p); setCustom(''); }}>{p}</button>
         ))}

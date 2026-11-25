@@ -197,6 +197,16 @@ body { margin: 0; background: var(--bg); }
 .warn { color: #b45309; }
 button.chip { min-height: 52px; padding: 6px 16px; font-size: 20px; border: 3px solid var(--border); background: #fff; color: var(--fg); cursor: pointer; }
 button.chip.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+/* 한 마디 고르기: 문장 버튼 4개를 2줄 × 2칸, 똑같은 크기(1:1)로 가운데 정렬 */
+.phrase-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.phrase-grid button.chip {
+  width: 100%; min-width: 0; min-height: 64px; padding: 8px 6px; font-size: 24px; line-height: 1.2;
+  display: flex; align-items: center; justify-content: center; text-align: center; word-break: keep-all;
+}
+/* 방향 버튼: 누른 버튼이 나침반 화살표와 같은 색으로 */
+.direction-check__answers .btn--tint-dest { background: #15803d; color: #fff; }
+.direction-check__answers .btn--tint-left { background: #0ea5e9; color: #0b1b2b; }
+.direction-check__answers .btn--tint-right { background: #f97316; color: #1a1a1a; }
 .leave-kakao { min-height: 80dvh; justify-content: center; text-align: center; }
 
 /* ── 상단 줄(제목 + 설정 버튼), 설정 화면, 접이식 정차 목록 ── */
