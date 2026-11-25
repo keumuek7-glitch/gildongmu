@@ -226,6 +226,14 @@ button.chip.chip--on { background: var(--primary); color: var(--primary-fg); bor
 .rv-guide .big { font-size: 56px; line-height: 1.2; }
 .direction-check .card__title { font-size: 44px; }
 .line-banner--bar { min-height: 28px; padding: 0; }
+/* 큰 노선 띠: 걷기·타기 화면 아래쪽에 노선 색으로 크게 */
+.screen--guide { min-height: calc(100dvh - 112px - 24px); }
+.stack--fill { flex: 1 1 auto; }
+.screen--guide > .stack--fill > .stack--fill { flex: 1 1 auto; }
+.route-strip { margin-top: auto; border-radius: var(--radius); padding: 14px 14px 18px; text-align: center; border: 3px solid currentColor; }
+.route-strip__line { margin: 0 0 4px; font-size: 34px; font-weight: 900; line-height: 1.2; }
+.route-strip__stops { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 8px; font-size: 36px; font-weight: 900; line-height: 1.25; word-break: keep-all; overflow-wrap: break-word; }
+.route-strip__arrow { font-size: 30px; }
 /* 큰 글자가 낱말 중간에서 끊기지 않게 (어르신 화면) */
 .card__title, .check-result, .takeover__title, .bus-alight__msg, .screen__header h1,
 .route-card h2.route-card__line, .rv-guide .big, .big, .btn, .btn__label { word-break: keep-all; overflow-wrap: break-word; }

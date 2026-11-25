@@ -76,7 +76,7 @@ describe('타기 전 확인 화면', () => {
   });
 });
 
-describe('걷는 화면 위 노선 띠에 노선 이름 글자', () => {
+describe('큰 노선 띠 (화면 아래, 노선 이름 + 탑승 ➡ 다음 ➡ 내리는 곳)', () => {
   const accessWalk = (nextRide: RideLeg): WalkLeg => ({
     id: 'leg-0',
     type: 'TRANSFER_WALK_LEG',
@@ -87,15 +87,26 @@ describe('걷는 화면 위 노선 띠에 노선 이름 글자', () => {
   });
   const renderAccess = (leg: WalkLeg) =>
     renderToStaticMarkup(createElement(AccessWalkCard, { leg, onDone: noop, ...binding }));
+  const threeStops: RideLeg = { ...subway, boardName: '청량리', alightName: '신설동', nextStation: '회기', stations: ['청량리', '회기', '외대앞', '신이문', '신설동'] };
+  const bus: RideLeg = { ...subway, type: 'BUS_LEG', busNo: '153', lineKey: '버스', boardName: '청량리역', nextStation: '제기동', alightName: '서울대병원', stations: ['청량리역', '제기동', '서울대병원'] };
 
-  it('출발 도보: 다음에 탈 전철 노선 이름이 띠에 보인다', () => {
-    expect(renderAccess(accessWalk(subway))).toContain('4호선');
+  it('출발 도보: 전철이면 "4호선"과 탑승역 ➡ 다음 역 ➡ 내리는 역이 띠에 큼직하게', () => {
+    const html = renderAccess(accessWalk(threeStops));
+    expect(html).toContain('route-strip__line">4호선<');
+    for (const n of ['청량리', '회기', '신설동']) expect(html).toContain(`route-strip__stop">${n}<`);
+    expect((html.match(/route-strip__arrow/g) ?? []).length).toBe(2);
   });
-  it('출발 도보: 다음에 탈 것이 버스면 "100번 버스"', () => {
-    const bus: RideLeg = { ...subway, type: 'BUS_LEG', busNo: '100', lineKey: '버스' };
-    expect(renderAccess(accessWalk(bus))).toContain('100번 버스');
+  it('버스면 "153번" 뒤에 현재 정류장 ➡ 다음 정류장 ➡ 내리는 정류장', () => {
+    const html = renderAccess(accessWalk(bus));
+    expect(html).toContain('route-strip__line">153번<');
+    for (const n of ['청량리역', '제기동', '서울대병원']) expect(html).toContain(`route-strip__stop">${n}<`);
   });
-  it('환승 1차 확인 화면에도 노선 이름이 보인다', () => {
-    expect(renderTransfer(transferWalk(subway))).toContain('4호선');
+  it('띠는 버튼이 아니라서 버튼 수는 그대로 (환승 1차 확인 = 2개)', () => {
+    const html = renderTransfer(transferWalk(threeStops));
+    expect(html).toContain('route-strip__stops');
+    expect((html.match(/<button/g) ?? []).length).toBe(2);
+  });
+  it('걷는 화면 위쪽의 가는 파란 띠는 없어졌다', () => {
+    expect(renderAccess(accessWalk(threeStops))).not.toContain('line-banner');
   });
 });

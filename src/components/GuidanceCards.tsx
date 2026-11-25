@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { RideLeg, WalkLeg } from '../core/stateMachine/routeLegBuilder';
 import type { StationExitGuide } from '../core/metadata/stationTransferMetadata';
 import { walkVM, type GuidanceViewModel } from '../core/tts/guidanceSpeechBuilder';
@@ -6,6 +6,7 @@ import { useCardAutoSpeech } from '../hooks/useCardAutoSpeech';
 import type { LineVisual } from '../core/metadata/subwayLineVisuals';
 import { transferCheckFor } from '../core/safety/directionCheck';
 import { DirectionCheck } from './BoardingDirectionCheck';
+import { routeStripNames, stripLineLabel } from '../core/stateMachine/routeStrip';
 
 export interface SpeechBinding {
   speak: (text: string) => void;
@@ -22,6 +23,32 @@ export function LineBanner({ visual, label }: { visual: LineVisual; label?: stri
     >
       {label && <span className="line-banner__label">{label}</span>}
     </div>
+  );
+}
+
+/**
+ * 큰 노선 띠: 화면 아래쪽에 노선 색으로 크게 "1호선  청량리 ➡ 회기 ➡ 내리는 역" (버스는 "153번 …").
+ * 버튼이 아니라 글자만 있는 띠라서 화면의 버튼 수에는 들어가지 않아요.
+ */
+export function RouteStrip({ leg }: { leg: RideLeg }) {
+  const line = stripLineLabel(leg);
+  const stops = routeStripNames(leg);
+  return (
+    <section
+      className="route-strip"
+      style={{ background: leg.visual.bgHex, color: leg.visual.textHex }}
+      aria-label={`${line}, ${stops.join(' ➡ ')}`}
+    >
+      <p className="route-strip__line">{line}</p>
+      <p className="route-strip__stops">
+        {stops.map((name, i) => (
+          <Fragment key={`${i}:${name}`}>
+            {i > 0 && <span className="route-strip__arrow" aria-hidden="true">➡</span>}
+            <span className="route-strip__stop">{name}</span>
+          </Fragment>
+        ))}
+      </p>
+    </section>
   );
 }
 
@@ -75,10 +102,10 @@ function TransferWalkBody({ leg, onDone, onCompass, speak, spoken }: WalkCardPro
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
-    <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={rideLabel(leg.nextRide)} />}
+    <div className="stack stack--fill">
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요" />
+      {leg.nextRide && <RouteStrip leg={leg.nextRide} />}
     </div>
   );
 }
@@ -88,9 +115,9 @@ function TransferDirectionAsk(props: SpeechBinding & { next: RideLeg; legId: str
   const check = transferCheckFor(props.next);
   useCardAutoSpeech(`${props.legId}:DIRCHECK`, check.question, props.speak, props.spoken);
   return (
-    <div className="stack">
-      <LineBanner visual={props.next.visual} label={rideLabel(props.next)} />
+    <div className="stack stack--fill">
       <DirectionCheck check={check} speak={props.speak} onConfirm={props.onYes} />
+      <RouteStrip leg={props.next} />
     </div>
   );
 }
@@ -213,10 +240,10 @@ export function AccessWalkCard({ leg, onDone, onCompass, speak, spoken }: WalkCa
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
-    <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={rideLabel(leg.nextRide)} />}
+    <div className="stack stack--fill">
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="타는 곳에 왔어요" />
+      {leg.nextRide && <RouteStrip leg={leg.nextRide} />}
     </div>
   );
 }
