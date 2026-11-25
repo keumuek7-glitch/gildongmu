@@ -3,6 +3,7 @@ import { gdStore } from './familyRelayClient';
 import { STATIC_DEMO } from './routeApiClient';
 import { RouteCache } from './routeCache';
 import { createRouteService, pickProvider } from './routeService';
+import { findLocalSubwayRoutes } from './subwayLocal';
 
 /** 앱이 실제로 쓰는 길 찾기(폰의 저장소 사용). 순수 로직은 routeService.ts 에 있습니다. */
 export const routeCache = new RouteCache(gdStore);
@@ -20,4 +21,6 @@ export const routeService = createRouteService({
   getProvider: () => pickProvider({ odsayKey: getOdsayKey(), staticDemo: STATIC_DEMO }),
   cache: routeCache,
   limit: dailyLimit,
+  // 서울 지하철만 타는 길은 앱이 먼저 직접 계산하고, 못 찾을 때만 바깥 길 찾기를 부릅니다.
+  local: findLocalSubwayRoutes,
 });

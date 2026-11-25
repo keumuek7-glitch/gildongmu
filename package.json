@@ -19,7 +19,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "convert:facilities": "tsx scripts/convertStationFacilities.ts"
+    "convert:facilities": "tsx scripts/convertStationFacilities.ts",
+    "build:subway": "tsx scripts/buildSubwayGraph.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.7",
