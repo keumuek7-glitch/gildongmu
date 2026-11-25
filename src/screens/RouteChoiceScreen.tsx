@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import type { ClassifiedRoutes, ScoredRoute } from '../core/classifier/seniorRouteClassifier';
+import { routeKindLabel } from '../core/classifier/routeKindLabel';
 
 function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRoute }) {
   const { route } = props;
   const name = props.kind === 'comfort' ? '🟢 편하게 걷기' : props.kind === 'fast' ? '🔵 빨리 가기' : '⭐ 추천 길';
+  // 전철 / 버스 / 전철+버스 중 어떤 길인지도 한 줄에 같이 보여 줘요
+  const kind = routeKindLabel(route.candidate);
   return (
     <section className={`route-card route-card--${props.kind}`}>
-      <h2 className="route-card__line">{name} · 약 {Math.round(route.adjustedTotalMin)}분</h2>
+      <h2 className="route-card__line">{name}{kind ? ` · ${kind}` : ''} · 약{' '}{Math.round(route.adjustedTotalMin)}분</h2>
     </section>
   );
 }

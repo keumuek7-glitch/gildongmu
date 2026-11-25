@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HomeScreen, type Favorite, type HomeDestination } from './screens/HomeScreen';
 import { RouteChoiceScreen } from './screens/RouteChoiceScreen';
+import { PlaceConfirmScreen } from './screens/PlaceConfirmScreen';
 import { ActiveGuideScreen } from './screens/ActiveGuideScreen';
 import { MissedStopRecoveryBanner } from './components/MissedStopRecoveryBanner';
 import { SosButton } from './components/SosButton';
@@ -42,12 +43,14 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { CompassView, type CompassTarget } from './components/CompassView';
 import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
 import { sendKakao, shareResultText } from './services/kakaoInApp';
+import { getKakaoKey, loadKakao, searchPlaces, type PlaceResult } from './services/kakaoMaps';
+import { isSameAsPrefilled, limitCandidates, normalizePlaceText } from './core/places/placeInput';
 import { useBusProximityAlert } from './hooks/useBusProximityAlert';
 import { BusAlightBanner } from './components/BusAlightBanner';
 import { sanitizeNearM, type AlightAlert } from './core/navigation/proximityAlight';
 import { josa } from './core/safety/directionCheck';
 
-type Screen = 'HOME' | 'CHOICE' | 'GUIDE';
+type Screen = 'HOME' | 'PLACE' | 'CHOICE' | 'GUIDE';
 interface Dest { name: string; x: number; y: number }
 
 /** 시연용 즐겨찾기. 좌표는 대략값입니다(정확한 좌표 확인 필요). */
@@ -115,6 +118,9 @@ export default function App() {
   const [dest, setDest] = useState<Dest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 목적지 글자 입력 → 찾은 장소 후보 (한 번에 하나씩 보여 줌)
+  const [placeList, setPlaceList] = useState<PlaceResult[] | null>(null);
+  const [placeBusy, setPlaceBusy] = useState(false);
   const [originLabel, setOriginLabel] = useState('현재 위치 (길 찾기 때 확인)');
   const [warning, setWarning] = useState<ReconcileWarning>({ kind: 'NONE' });
   const [pendingRestore, setPendingRestore] = useState<ReconcileResult | null>(null);
@@ -264,6 +270,47 @@ export default function App() {
       }
     },
     [],
+  );
+
+  /**
+   * 홈의 [찾기]. 입력칸에 미리 써 둔 곳을 고치지 않았으면 바로 길 찾기,
+   * 고쳐 썼으면 장소를 찾아서 후보를 한 번에 하나씩 물어봅니다.
+   */
+  const submitDestination = useCallback(
+    async (raw: string, prefilled: Dest) => {
+      const text = normalizePlaceText(raw);
+      setError(null);
+      if (!text) {
+        setError('가고 싶은 곳을 써 주세요.');
+        return;
+      }
+      if (isSameAsPrefilled(text, prefilled.name)) {
+        void searchRoutes(prefilled);
+        return;
+      }
+      setPlaceBusy(true);
+      try {
+        try { await loadKakao(); } catch { /* 안 불러와지면 아래에서 null 로 알게 됨 */ }
+        const list = await searchPlaces(text);
+        if (list === null) {
+          setError(
+            getKakaoKey()
+              ? '장소를 찾지 못했어요. 잠시 후 다시 눌러 주세요.'
+              : '장소 찾기가 아직 켜져 있지 않아요. 설정에서 카카오 키를 넣어 주세요.',
+          );
+          return;
+        }
+        if (list.length === 0) {
+          setError('찾는 곳이 없어요. 다르게 써 주세요.');
+          return;
+        }
+        setPlaceList(limitCandidates(list));
+        setScreen('PLACE');
+      } finally {
+        setPlaceBusy(false);
+      }
+    },
+    [searchRoutes],
   );
 
   const pickRoute = useCallback(
@@ -427,6 +474,7 @@ export default function App() {
   useBackClose(!!compassTarget, () => setCompassTarget(null));
   useBackClose(guideOpen && !!familyGuide && !compassTarget, closeRoadview);
   useBackClose(screen === 'CHOICE', () => setScreen(session ? 'GUIDE' : 'HOME'));
+  useBackClose(screen === 'PLACE', () => setScreen('HOME'));
   // 길 안내 중 뒤로 버튼: 그만할지 먼저 물어봄
   useBackClose(role === 'elder' && screen === 'GUIDE' && !!session && !session.finished, () => {
     if (window.confirm('길 안내를 그만할까요?')) {
@@ -615,6 +663,15 @@ export default function App() {
         }
       />
     );
+  } else if (screen === 'PLACE' && placeList) {
+    view = (
+      <PlaceConfirmScreen
+        candidates={placeList}
+        loading={loading}
+        onPick={(p) => void searchRoutes({ name: p.name.slice(0, 30), x: p.lng, y: p.lat })}
+        onBack={() => setScreen('HOME')}
+      />
+    );
   } else if (screen === 'CHOICE' && routes) {
     view = (
       <RouteChoiceScreen
@@ -648,9 +705,10 @@ export default function App() {
         resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
         originWarning={originLabel.startsWith('현재 위치') ? null : `${FALLBACK_LOCATION.name}에서 출발해요`}
         notice={notice}
-        loading={loading}
+        loading={loading || placeBusy}
+        loadingText={placeBusy ? '장소를 찾고 있어요…' : '길을 찾고 있어요…'}
         error={error}
-        onGo={(d) => void searchRoutes(d)}
+        onSubmit={(t) => void submitDestination(t, homeDestination)}
         onResume={() => {
           if (!pendingRestore?.state) return;
           apply({ state: pendingRestore.state, effects: pendingRestore.effects });

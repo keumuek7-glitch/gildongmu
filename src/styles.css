@@ -229,3 +229,12 @@ button.chip.chip--on { background: var(--primary); color: var(--primary-fg); bor
 /* 큰 글자가 낱말 중간에서 끊기지 않게 (어르신 화면) */
 .card__title, .check-result, .takeover__title, .bus-alight__msg, .screen__header h1,
 .route-card h2.route-card__line, .rv-guide .big, .big, .btn, .btn__label { word-break: keep-all; overflow-wrap: break-word; }
+
+/* ── 목적지 글자 입력칸 (버튼이 아님) ── */
+.place-input {
+  width: 100%; min-height: 84px; padding: 12px 16px; font-size: 36px; font-weight: 800; font-family: inherit;
+  border: 3px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--fg);
+}
+.place-input::placeholder { color: #666; font-weight: 600; font-size: 28px; }
+.place-input:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
+.place-input:disabled { opacity: 0.55; }
