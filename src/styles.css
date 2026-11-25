@@ -160,6 +160,13 @@ body { margin: 0; background: var(--bg); }
 .compass--aligned .btn { border-color: #fff; background: transparent; color: #fff; }
 .compass--aligned .btn--primary { background: #fff; color: #166534; }
 
+.compass--tint-left { background: #bae6fd; }
+.compass--tint-left .compass__arrow-line { stroke: #0ea5e9; }
+.compass--tint-left .compass__arrow-head { fill: #0ea5e9; }
+.compass--tint-right { background: #fed7aa; }
+.compass--tint-right .compass__arrow-line { stroke: #f97316; }
+.compass--tint-right .compass__arrow-head { fill: #f97316; }
+
 /* ── 가족이 보낸 로드뷰 안내 ── */
 .rv-guide__box { position: relative; height: max(260px, calc(100dvh - 360px)); border-radius: 18px; overflow: hidden; background: #ecebe6; border: 3px solid #d6d3cb; }
 .rv-guide__view { position: absolute; inset: 0; }

@@ -632,6 +632,7 @@ export default function App() {
         target={compassTarget}
         speak={speakText}
         testMode={testMode}
+        tint={familyGuide?.tint}
         onClose={() => setCompassTarget(null)}
         onRoadview={familyGuide ? () => { setCompassTarget(null); setGuideOpen(true); } : undefined}
         onArrived={() => {

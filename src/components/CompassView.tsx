@@ -20,6 +20,8 @@ export function CompassView(props: {
   speak?: (text: string) => void;
   /** 시험 버튼(가짜 위치·방향)을 보일지 */
   testMode?: boolean;
+  /** 가족이 보낸 방향 색. 왼쪽=하늘색, 오른쪽=주황 (방향이 맞으면 늘 초록) */
+  tint?: 'dest' | 'left' | 'right';
 }) {
   const [sim, setSim] = useState<{ pos: LatLng | null; heading: number | null } | null>(null);
   const s = useCompassSensors(true, sim);
@@ -49,7 +51,7 @@ export function CompassView(props: {
   const roadviewShown = !!props.onRoadview && !s.needPermit;
 
   return (
-    <div className={`compass ${aligned ? 'compass--aligned' : ''}`} role="dialog" aria-label="나침반">
+    <div className={`compass ${aligned ? 'compass--aligned' : props.tint === 'left' || props.tint === 'right' ? `compass--tint-${props.tint}` : ''}`} role="dialog" aria-label="나침반">
       {roadviewShown && (
         <button className="btn btn--ghost compass__back" onClick={props.onClose}>← 뒤로</button>
       )}
