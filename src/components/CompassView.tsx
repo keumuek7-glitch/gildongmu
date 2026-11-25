@@ -63,7 +63,7 @@ export function CompassView(props: {
         <text x="175" y="392" className="compass__me-tag">나</text>
       </svg>
       <p className="compass__msg" aria-live="polite">{g.text}</p>
-      {g.distanceM != null && <p className="compass__dist">남은 거리(직선) {fmtDist(g.distanceM)}</p>}
+      {g.distanceM != null && <p className="compass__dist">{fmtDist(g.distanceM)}</p>}
       {s.gpsDenied && <p className="status status--error">위치 권한을 켜 주세요</p>}
       {/* 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로] */}
       <div className="compass__actions">

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { currentLeg, type MultiLegState } from '../core/stateMachine/multiLegManager';
 import { isRideLeg, type RideLeg } from '../core/stateMachine/routeLegBuilder';
-import { currentTransitVM, remainingStops, type TransitState } from '../core/stateMachine/transitStateMachine';
+import { currentTransitVM, type TransitState } from '../core/stateMachine/transitStateMachine';
 import { BoardingDirectionCheck } from '../components/BoardingDirectionCheck';
 import { arrivedVM } from '../core/tts/guidanceSpeechBuilder';
 import {
@@ -25,16 +25,9 @@ function RideView(props: {
 }) {
   const { leg, t } = props;
   const vm = currentTransitVM(leg, t);
-  const remaining = remainingStops(leg, t);
   return (
     <div className="stack">
-      <LineBanner visual={leg.visual} label={`${rideLabel(leg)} · ${leg.boardName} → ${leg.alightName}`} />
-      {t.phase !== 'WAITING_BOARDING' && t.phase !== 'WRONG_DIRECTION_SUSPECTED' && (
-        <div className="countdown" aria-live="polite">
-          <span className="countdown__num">{remaining}</span>
-          <span className="countdown__label">정거장 남음</span>
-        </div>
-      )}
+      <LineBanner visual={leg.visual} label={rideLabel(leg)} />
       {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 줍니다 */}
       {t.phase === 'WAITING_BOARDING' ? (
         <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} onHelp={props.onHelp} speak={props.speak} />
@@ -111,9 +104,6 @@ export function ActiveGuideScreen(props: {
 
   return (
     <main className="screen screen--guide">
-      <header className="screen__header screen__header--compact">
-        <p className="muted">{session.destName} 가는 길</p>
-      </header>
       {body}
     </main>
   );

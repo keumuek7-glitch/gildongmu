@@ -25,7 +25,6 @@ export function BoardingDirectionCheck(props: {
       <div className="stack">
         <div className="card card--warning" role="alert">
           <p className="card__title">⛔ {c.wrongTitle}</p>
-          <ul className="card__lines">{c.wrongLines.map((l) => <li key={l}>{l}</li>)}</ul>
         </div>
         <button className="btn btn--primary" onClick={() => { setStep('ASK'); speak(c.question); }}>다시 확인하기</button>
         <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
@@ -46,9 +45,7 @@ export function BoardingDirectionCheck(props: {
   return (
     <div className="stack">
       <div className="card card--alert direction-check">
-        <p className="card__title">타기 전에 방향을 확인해요</p>
-        <p className="direction-check__look">{c.lookFor}</p>
-        <p>{c.question}</p>
+        <p className="card__title">{c.question}</p>
       </div>
       <button className="btn btn--primary" onClick={() => { setStep('OK'); speak(c.okText); }}>네, 맞아요</button>
       <button

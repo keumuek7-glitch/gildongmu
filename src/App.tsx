@@ -558,8 +558,8 @@ export default function App() {
   const familyDest = relayDest ?? guardianDest;
   const fav = FAVORITES[0];
   const homeDestination: HomeDestination = familyDest
-    ? { label: `🚩 ${familyDest.name}`, sub: '가족이 보낸 목적지', name: familyDest.name, x: familyDest.x, y: familyDest.y }
-    : { label: fav.label, sub: fav.name, name: fav.name, x: fav.x, y: fav.y };
+    ? { label: `🚩 ${familyDest.name}`, name: familyDest.name, x: familyDest.x, y: familyDest.y }
+    : { label: fav.label, name: fav.name, x: fav.x, y: fav.y };
 
   const openHelp = () => {
     setLocNote(null);
@@ -582,7 +582,6 @@ export default function App() {
   } else if (screen === 'GUIDE' && busAway && busLeg) {
     view = (
       <BusAwayScreen
-        stopName={busLeg.alightName}
         onReroute={() => {
           setBusAway(false);
           reroute();
@@ -678,7 +677,7 @@ export default function App() {
       <HomeScreen
         destination={homeDestination}
         resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
-        originWarning={originLabel.startsWith('현재 위치') ? null : originLabel}
+        originWarning={originLabel.startsWith('현재 위치') ? null : `${FALLBACK_LOCATION.name}에서 출발해요`}
         notice={notice}
         loading={loading}
         error={error}

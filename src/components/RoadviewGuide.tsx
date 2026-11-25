@@ -78,7 +78,6 @@ export function RoadviewGuide(props: {
           {guide.phrase}
         </p>
       </div>
-      <p className="muted">🔊 글자를 누르면 다시 읽어요</p>
       {props.onCompass && <button className="btn btn--primary" onClick={props.onCompass}>나침반</button>}
     </div>
   );

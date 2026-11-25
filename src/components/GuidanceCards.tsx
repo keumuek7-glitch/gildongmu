@@ -8,12 +8,15 @@ export interface SpeechBinding {
   spoken: { has(k: string): boolean; add(k: string): void };
 }
 
-/** 노선 고유색 배너 (예: 초록색 2호선) */
-export function LineBanner({ visual, label }: { visual: LineVisual; label: string }) {
+/** 노선 고유색 배너 (예: 초록색 2호선). label 이 없으면 색만 보이는 띠 */
+export function LineBanner({ visual, label }: { visual: LineVisual; label?: string }) {
   return (
-    <div className="line-banner" style={{ background: visual.bgHex, color: visual.textHex }}>
-      <span className="line-banner__label">{label}</span>
-      {visual.colorName && <span className="line-banner__color">{visual.colorName}</span>}
+    <div
+      className={`line-banner ${label ? '' : 'line-banner--bar'}`}
+      style={{ background: visual.bgHex, color: visual.textHex }}
+      aria-label={label || undefined}
+    >
+      {label && <span className="line-banner__label">{label}</span>}
     </div>
   );
 }
@@ -23,7 +26,8 @@ export function rideLabel(leg: RideLeg): string {
 }
 
 /**
- * 공통 카드 본문. 버튼이 아니라 카드를 누르면 다시 읽어 줍니다 (화면의 버튼 수를 줄이기 위해).
+ * 공통 카드 본문: 큰 글자 한 문장(제목)만 보여 줍니다. 소리는 자세한 설명까지 읽어 줍니다.
+ * 버튼이 아니라 카드를 누르면 다시 읽어 줍니다 (화면의 버튼 수를 줄이기 위해).
  */
 export function GuidanceBody({ vm, onReplay }: { vm: GuidanceViewModel; onReplay?: () => void }) {
   const press = onReplay
@@ -42,12 +46,6 @@ export function GuidanceBody({ vm, onReplay }: { vm: GuidanceViewModel; onReplay
   return (
     <section className={`card card--${vm.tone} ${onReplay ? 'card--tap' : ''}`} aria-live="polite" {...press}>
       <h1 className="card__title">{vm.title}</h1>
-      <ul className="card__lines">
-        {vm.lines.map((l, i) => (
-          <li key={i}>{l}</li>
-        ))}
-      </ul>
-      {onReplay && <p className="card__hint">🔊 글자를 누르면 다시 읽어요</p>}
     </section>
   );
 }
@@ -74,12 +72,9 @@ export function TransferGuidanceCard({ leg, onDone, onCompass, speak, spoken }: 
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={`${rideLabel(leg.nextRide)} 타는 곳으로`} />}
+      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} />}
       <GuidanceBody vm={vm} onReplay={replay} />
-      {leg.railGuide?.quickDoor && (
-        <p className="hint">빠른 환승 문: <strong>{leg.railGuide.quickDoor}</strong></p>
-      )}
-      <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요 (타는 곳 도착)" />
+      <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요" />
     </div>
   );
 }
@@ -108,7 +103,7 @@ export function AccessWalkCard({ leg, onDone, onCompass, speak, spoken }: WalkCa
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={`${rideLabel(leg.nextRide)} 타러 가요`} />}
+      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} />}
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="타는 곳에 왔어요" />
     </div>

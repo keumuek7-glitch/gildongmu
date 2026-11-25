@@ -9,7 +9,6 @@ export interface Favorite {
 /** 홈의 큰 버튼 하나: 가려는 곳 */
 export interface HomeDestination {
   label: string;
-  sub: string;
   name: string;
   x: number;
   y: number;
@@ -38,10 +37,10 @@ export function HomeScreen(props: {
     return (
       <main className="screen">
         <header className="screen__header">
-          <h1>{props.resumeAvailable.destName} 가는 길 안내가 진행 중이었어요</h1>
+          <h1>이어서 갈까요?</h1>
         </header>
         <div className="stack">
-          <button className="btn btn--primary" onClick={props.onResume}>이어서 안내 받기</button>
+          <button className="btn btn--primary" onClick={props.onResume}>이어서 가기</button>
           <button className="btn btn--secondary" onClick={props.onDiscardResume}>새로 시작</button>
         </div>
       </main>
@@ -55,13 +54,12 @@ export function HomeScreen(props: {
         <h1>어디로 가세요?</h1>
       </header>
 
-      {props.originWarning && <p className="muted warn">출발: {props.originWarning}</p>}
+      {props.originWarning && <p className="muted warn">{props.originWarning}</p>}
       {props.notice && <p className="status" role="status">{props.notice}</p>}
 
       <div className="stack">
         <button className="btn btn--favorite" disabled={props.loading} onClick={() => props.onGo(d)}>
           <span className="btn__label">{d.label}</span>
-          <span className="btn__sub">{d.sub}</span>
         </button>
         <button className="btn btn--secondary" onClick={props.onOpenSettings}>⚙ 설정</button>
       </div>

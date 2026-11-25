@@ -17,7 +17,7 @@ export function MissedStopRecoveryBanner({
   if (warning.kind === 'ALIGHT_SOON') {
     return (
       <div className="takeover takeover--alert" role="alert">
-        <h1 className="takeover__title">곧 {warning.alightName}에서 내리셔야 해요</h1>
+        <h1 className="takeover__title">곧 {warning.alightName}에서 내려요</h1>
         <button className="btn btn--primary" onClick={onDismiss}>알겠어요</button>
       </div>
     );
@@ -25,11 +25,10 @@ export function MissedStopRecoveryBanner({
   return (
     <div className="takeover takeover--warning" role="alert">
       <h1 className="takeover__title">
-        내리실 곳({warning.alightName})을
-        <br />약 {Math.max(1, warning.overdueMin)}분 지났을 수 있어요
+        내릴 곳을 지났을 수 있어요
       </h1>
-      <button className="btn btn--primary" onClick={onReroute}>지금 위치에서 길 다시 찾기</button>
-      <button className="btn btn--secondary" onClick={onDismiss}>아직 안 지났어요, 계속 안내</button>
+      <button className="btn btn--primary" onClick={onReroute}>길 다시 찾기</button>
+      <button className="btn btn--secondary" onClick={onDismiss}>계속 안내</button>
     </div>
   );
 }
