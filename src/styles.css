@@ -170,3 +170,14 @@ body { margin: 0; background: var(--bg); }
 .direction-check__answers { display: flex; gap: 12px; }
 .check-result { font-size: 24px; font-weight: 800; margin: 0; padding: 12px; border-radius: var(--radius); background: var(--alert-bg); }
 .check-result--ok { background: var(--guardian-bg); }
+
+/* ── 가족 화면 ── */
+.family-map { width: 100%; height: auto; background: #f4f6fb; border: 3px solid #d6dbe8; border-radius: 18px; }
+.family-map .blink { animation: gd-blink 1.2s ease-in-out infinite; }
+@keyframes gd-blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .family-map .blink { animation: none; } }
+.dial { width: 200px; height: 200px; align-self: center; display: block; margin: 0 auto; }
+.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.warn { color: #b45309; }
+button.chip { min-height: 52px; padding: 6px 16px; font-size: 20px; border: 3px solid var(--border); background: #fff; color: var(--fg); cursor: pointer; }
+button.chip.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }

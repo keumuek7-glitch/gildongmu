@@ -55,3 +55,16 @@ describe('버스 탄 뒤 멀어짐 감지', () => {
     expect([3000, 2500, 1800, 900, 300].some((d) => trackAway(t, d))).toBe(false);
   });
 });
+
+import { josa } from '../src/core/safety/directionCheck';
+describe('조사', () => {
+  it('받침에 맞게 붙인다 (따옴표 안 글자 기준)', () => {
+    expect(josa("'제기동'", '으로', '로')).toBe("'제기동'으로");
+    expect(josa("'서울'", '으로', '로')).toBe("'서울'로");
+    expect(josa("'신설동'", '으로', '로')).toBe("'신설동'으로");
+    expect(josa("'동대문'", '이', '가')).toBe("'동대문'이");
+    expect(josa("'종로5가'", '를', '를')).toBe("'종로5가'를");
+    expect(josa("'다음 역 제기동'", '을', '를')).toBe("'다음 역 제기동'을");
+    expect(josa("'다음 정류장 B'", '을', '를')).toBe("'다음 정류장 B'를");
+  });
+});

@@ -35,6 +35,7 @@ import {
 import { FamilyRelayClient, gdStore, type RelayState } from './services/familyRelayClient';
 import { RoleSelectScreen } from './screens/RoleSelectScreen';
 import { FamilyScreen, type ElderLoc } from './screens/FamilyScreen';
+import type { TripData } from './core/guardian/familyRelay';
 import { PairingPanel } from './components/PairingPanel';
 import { CompassView, type CompassTarget } from './components/CompassView';
 import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
@@ -87,6 +88,7 @@ export default function App() {
   const [paired, setPaired] = useState(() => relay.isPaired());
   const [relayDest, setRelayDest] = useState(() => relayTripDest(relay.last('trip')));
   const [notice, setNotice] = useState<string | null>(initial.pairedNow ? '가족과 연결됐어요' : null);
+  const [familyTrip, setFamilyTrip] = useState<TripData | null>(() => sanitizeTrip(relay.last('trip')?.data));
   const [compassTarget, setCompassTarget] = useState<CompassTarget | null>(null);
   const [familyGuide, setFamilyGuide] = useState<FamilyGuide | null>(() => sanitizeGuide(relay.last('guide')?.data));
   const [guideOpen, setGuideOpen] = useState(false);
@@ -452,7 +454,30 @@ export default function App() {
   if (role === 'child') {
     return (
       <div className="app">
-        <FamilyScreen elderLoc={elderLoc} news={notice}>{pairingPanel}</FamilyScreen>
+        <FamilyScreen
+          elderLoc={elderLoc}
+          trip={familyTrip}
+          news={notice}
+          paired={paired}
+          onSendTrip={(t) => {
+            relay.send('trip', t);
+            setFamilyTrip(t);
+            setNotice(paired ? '어르신 휴대폰으로 도착지를 보냈어요' : '휴대폰 연결 전이라 아직 못 보냈어요. 아래에서 연결해 주세요');
+          }}
+          onResetTrip={() => {
+            const empty: TripData = { from: null, stop: null, dest: null };
+            relay.send('tripReset', {});
+            relay.send('trip', empty);
+            setFamilyTrip(empty);
+          }}
+          onSendGuide={(g) => {
+            if (familyTrip?.dest) relay.send('trip', familyTrip);
+            relay.send('guide', g);
+            setNotice(paired ? '어르신 휴대폰으로 보냈어요' : '휴대폰 연결 전이라 아직 못 보냈어요. 아래에서 연결해 주세요');
+          }}
+        >
+          {pairingPanel}
+        </FamilyScreen>
       </div>
     );
   }

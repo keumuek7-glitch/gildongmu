@@ -99,3 +99,30 @@ export function kakaoReason(): string {
   if (rvWhy === 'error') return '로드뷰를 여는 중 오류가 났어요';
   return '로드뷰를 불러오지 못했어요';
 }
+
+export interface PlaceResult {
+  name: string;
+  addr: string;
+  lat: number;
+  lng: number;
+}
+
+/** 카카오 장소 찾기 (키워드). 불러오지 못했으면 null, 없으면 [] */
+export function searchPlaces(q: string): Promise<PlaceResult[] | null> {
+  return new Promise((resolve) => {
+    if (!kakaoReady() || !window.kakao.maps.services) { resolve(null); return; }
+    const k = window.kakao;
+    const ps = new k.maps.services.Places();
+    ps.keywordSearch(q, (data: Array<Record<string, string>>, status: string) => {
+      if (status !== k.maps.services.Status.OK) { resolve([]); return; }
+      resolve(
+        data.slice(0, 10).map((d) => ({
+          name: d.place_name,
+          addr: d.road_address_name || d.address_name || '',
+          lat: Number(d.y),
+          lng: Number(d.x),
+        })),
+      );
+    });
+  });
+}

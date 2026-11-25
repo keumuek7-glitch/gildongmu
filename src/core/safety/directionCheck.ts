@@ -23,6 +23,21 @@ export interface BoardingCheck {
 
 const q = (s: string) => `'${s}'`;
 
+/** 마지막 글자 받침: null=한글 아님, 0=없음, 8=ㄹ, 그 밖=있음 */
+function jong(word: string): number | null {
+  const w = word.trim().replace(/['"’”)]+$/, '');
+  const c = w.charCodeAt(w.length - 1);
+  if (c >= 0xac00 && c <= 0xd7a3) return (c - 0xac00) % 28;
+  if (c >= 0x30 && c <= 0x39) return [1, 1, 0, 1, 0, 0, 1, 1, 1, 0][c - 0x30]; // 0영 1일 2이 3삼 4사 5오 6육 7칠 8팔 9구 (대략)
+  return null;
+}
+/** 이/가, 을/를, 은/는, 으로/로, 인가요/인가요 */
+export function josa(word: string, withB: string, without: string): string {
+  const j = jong(word);
+  if (withB === '으로') return word + (j && j !== 8 ? '으로' : '로');
+  return word + (j ? withB : without);
+}
+
 export function boardingCheckFor(leg: RideLeg): BoardingCheck {
   const next = leg.nextStation && leg.nextStation !== leg.boardName ? leg.nextStation : undefined;
   const target = leg.alightName;
@@ -30,15 +45,15 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
     const lookFor = leg.way ? `${leg.way} 방면` : next ? `다음 역 ${next}` : `${target} 방향`;
     return {
       question: leg.way
-        ? `타는 곳 안내판에 ${q(`${leg.way} 방면`)}이 보이나요?`
+        ? `타는 곳 안내판에 ${josa(q(`${leg.way} 방면`), '이', '가')} 보이나요?`
         : next
-          ? `타는 곳 안내판에 다음 역이 ${q(next)}로 적혀 있나요?`
+          ? `타는 곳 안내판에 다음 역이 ${josa(q(next), '으로', '로')} 적혀 있나요?`
           : `타는 곳 안내판에 ${q(target)} 방향이 보이나요?`,
       lookFor,
       okText: '맞아요. 이쪽에서 열차를 타세요',
       wrongTitle: '반대 방향이에요. 이 열차는 타지 마세요',
       wrongLines: [
-        `안내판에서 ${q(lookFor)}을 찾아 그쪽 타는 곳으로 가세요`,
+        `안내판에서 ${josa(q(lookFor), '을', '를')} 찾아 그쪽 타는 곳으로 가세요`,
         '건너편 타는 곳이면 계단이나 승강기로 건너가요',
         `모르면 역무원에게 "${target} 가요?" 하고 물어보세요`,
       ],
@@ -49,7 +64,7 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
   return {
     question: next
       ? `정류장 안내판이나 버스 앞 화면에서 다음 정류장이 ${q(next)}인가요?`
-      : `버스 앞 화면에 ${q(bus)}이 보이나요?`,
+      : `버스 앞 화면에 ${josa(q(bus), '이', '가')} 보이나요?`,
     lookFor: next ? `다음 정류장 ${next}` : bus,
     okText: '맞아요. 이 버스를 타세요',
     wrongTitle: '반대 방향 정류장일 수 있어요. 타지 마세요',
