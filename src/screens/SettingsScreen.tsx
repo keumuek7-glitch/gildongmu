@@ -15,6 +15,8 @@ export function SettingsScreen(props: {
   onMakeLink?: () => string;
   onUnpair: () => void;
   guardianPhone: string;
+  /** SOS 버튼을 눌렀는데 번호가 없을 때 안내를 띄움 */
+  phoneHint?: boolean;
   onSavePhone: (phone: string) => void;
   testMode: boolean;
   onToggleTestMode: (on: boolean) => void;
@@ -65,9 +67,12 @@ export function SettingsScreen(props: {
 
       {elder && (
         <section className="settings-block">
-          <h2 className="settings-block__title">보호자 전화번호</h2>
+          <h2 className="settings-block__title">가족 전화번호 (SOS)</h2>
+          {(props.phoneHint || !props.guardianPhone) && (
+            <p className="hint" role="status">번호를 적고 저장하면, 화면 오른쪽 위 SOS 버튼으로 바로 전화해요</p>
+          )}
           <label className="field">
-            <span>도움이 필요할 때 위치를 보낼 번호</span>
+            <span>SOS 버튼으로 전화할 가족 번호</span>
             <input
               inputMode="tel"
               value={phoneDraft}

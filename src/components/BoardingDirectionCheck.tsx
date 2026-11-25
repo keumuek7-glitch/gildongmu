@@ -12,7 +12,6 @@ type Step = 'ASK' | 'OK' | 'WRONG';
 export function BoardingDirectionCheck(props: {
   leg: RideLeg;
   onBoarded: () => void;
-  onHelp: () => void;
   speak: (t: string) => void;
 }) {
   const { leg, speak } = props;
@@ -27,7 +26,6 @@ export function BoardingDirectionCheck(props: {
           <p className="card__title">⛔ {c.wrongTitle}</p>
         </div>
         <button className="btn btn--primary" onClick={() => { setStep('ASK'); speak(c.question); }}>다시 확인하기</button>
-        <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
       </div>
     );
   }

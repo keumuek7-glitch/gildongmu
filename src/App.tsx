@@ -3,7 +3,7 @@ import { HomeScreen, type Favorite, type HomeDestination } from './screens/HomeS
 import { RouteChoiceScreen } from './screens/RouteChoiceScreen';
 import { ActiveGuideScreen } from './screens/ActiveGuideScreen';
 import { MissedStopRecoveryBanner } from './components/MissedStopRecoveryBanner';
-import { HelpScreen } from './screens/HelpScreen';
+import { SosButton } from './components/SosButton';
 import { BusAwayScreen } from './components/BusAwayScreen';
 import { useBackClose } from './hooks/useBackClose';
 import { DevTestPanel, type DevActions } from './components/DevTestPanel';
@@ -17,10 +17,8 @@ import {
   type MultiLegEvent,
   type MultiLegState,
 } from './core/stateMachine/multiLegManager';
-import { currentTransitVM } from './core/stateMachine/transitStateMachine';
 import { reconcileSession, type ReconcileResult, type ReconcileWarning } from './core/stateMachine/sessionTimeReconciler';
 import { decodeGuardianLink } from './core/guardian/guardianLinkCodec';
-import { buildSmsUri, buildSosMessage } from './core/guardian/sosMessageBuilder';
 import { fetchSeniorRoutesOrSample, RouteApiError, STATIC_DEMO } from './services/routeApiClient';
 import { createWebSpeechAdapter, vibrate } from './services/speechAdapter';
 import { getCurrentLocation, FALLBACK_LOCATION } from './utils/currentLocationHelper';
@@ -121,8 +119,7 @@ export default function App() {
   const [warning, setWarning] = useState<ReconcileWarning>({ kind: 'NONE' });
   const [pendingRestore, setPendingRestore] = useState<ReconcileResult | null>(null);
   const [guardianPhone, setGuardianPhone] = useState(readPhone);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [locBusy, setLocBusy] = useState(false);
+  const [phoneHint, setPhoneHint] = useState(false);
   const [locNote, setLocNote] = useState<string | null>(null);
   const [simOffset, setSimOffset] = useState(0);
   const simOffsetRef = useRef(0);
@@ -175,38 +172,14 @@ export default function App() {
     setRole(r);
   }, []);
 
-  /**
-   * 내 위치를 가족에게 보냅니다. withSms 이면 보호자에게 보낼 문자 화면도 엽니다(도움 화면).
-   * 가족 앱으로는 연결돼 있을 때만 가고, 문자는 연결과 상관없이 열립니다.
-   */
-  const shareLocation = useCallback(
-    async (withSms: boolean) => {
-      setLocBusy(true);
-      setLocNote(null);
-      try {
-        const loc = await getCurrentLocation(8000);
-        const gps = loc.source === 'GPS';
-        if (gps) relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
-        setLocNote(!gps ? '위치를 못 찾았어요. 위치 권한을 켜 주세요' : relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
-        if (withSms) {
-          const s = sessionRef.current;
-          const leg = s ? currentLeg(s) : undefined;
-          const step = s && leg && isRideLeg(leg) && s.transit ? currentTransitVM(leg, s.transit).title : undefined;
-          const body = buildSosMessage({
-            lat: loc.y,
-            lng: loc.x,
-            approximate: !gps,
-            destName: s?.destName ?? dest?.name,
-            currentStep: step,
-          });
-          window.location.href = buildSmsUri(guardianPhone, body, navigator.userAgent);
-        }
-      } finally {
-        setLocBusy(false);
-      }
-    },
-    [relay, dest, guardianPhone],
-  );
+  /** 내 위치를 가족 앱으로 보냅니다 (설정 화면의 버튼). 연결돼 있을 때만 갑니다. */
+  const shareLocation = useCallback(async () => {
+    setLocNote(null);
+    const loc = await getCurrentLocation(8000);
+    const gps = loc.source === 'GPS';
+    if (gps) relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
+    setLocNote(!gps ? '위치를 못 찾았어요. 위치 권한을 켜 주세요' : relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
+  }, [relay]);
   const speech = useMemo(() => createWebSpeechAdapter(), []);
   const now = useCallback(() => Date.now() + simOffsetRef.current, []);
   const speakText = useCallback((t: string) => speech.speak(t), [speech]);
@@ -453,7 +426,6 @@ export default function App() {
   useBackClose(settingsOpen, () => setSettingsOpen(false));
   useBackClose(!!compassTarget, () => setCompassTarget(null));
   useBackClose(guideOpen && !!familyGuide && !compassTarget, closeRoadview);
-  useBackClose(helpOpen, () => setHelpOpen(false));
   useBackClose(screen === 'CHOICE', () => setScreen(session ? 'GUIDE' : 'HOME'));
   // 길 안내 중 뒤로 버튼: 그만할지 먼저 물어봄
   useBackClose(role === 'elder' && screen === 'GUIDE' && !!session && !session.finished, () => {
@@ -474,9 +446,20 @@ export default function App() {
 
   if (!role) return <div className="app"><RoleSelectScreen onPick={pickRole} /></div>;
 
+  const sos = role === 'elder' ? (
+    <SosButton
+      phone={guardianPhone}
+      onNoPhone={() => {
+        setPhoneHint(true);
+        setSettingsOpen(true);
+      }}
+    />
+  ) : null;
+
   if (settingsOpen) {
     return (
-      <div className="app">
+      <div className={role === 'elder' ? 'app app--elder' : 'app'}>
+        {sos}
         <SettingsScreen
           role={role}
           paired={paired}
@@ -487,11 +470,12 @@ export default function App() {
             setPaired(false);
           }}
           guardianPhone={guardianPhone}
+          phoneHint={phoneHint}
           onSavePhone={(p) => {
             setGuardianPhone(p);
             try { localStorage.setItem(PHONE_KEY, p); } catch { /* noop */ }
           }}
-          onShareLocation={role === 'elder' ? () => void shareLocation(false) : undefined}
+          onShareLocation={role === 'elder' ? () => void shareLocation() : undefined}
           locationNote={locNote}
           hasFamilyGuide={!!familyGuide}
           onOpenFamilyGuide={() => {
@@ -508,7 +492,10 @@ export default function App() {
             setSettingsOpen(false);
             pickRole(role === 'elder' ? 'child' : 'elder');
           }}
-          onBack={() => setSettingsOpen(false)}
+          onBack={() => {
+            setSettingsOpen(false);
+            setPhoneHint(false);
+          }}
         />
       </div>
     );
@@ -560,11 +547,6 @@ export default function App() {
   const homeDestination: HomeDestination = familyDest
     ? { label: `🚩 ${familyDest.name}`, name: familyDest.name, x: familyDest.x, y: familyDest.y }
     : { label: fav.label, name: fav.name, x: fav.x, y: fav.y };
-
-  const openHelp = () => {
-    setLocNote(null);
-    setHelpOpen(true);
-  };
 
   let view: ReactNode;
   if (busAlert && busLeg) {
@@ -633,18 +615,6 @@ export default function App() {
         }
       />
     );
-  } else if (helpOpen) {
-    view = (
-      <HelpScreen
-        busy={locBusy}
-        note={locNote}
-        onShareLocation={() => void shareLocation(true)}
-        onReroute={() => {
-          setHelpOpen(false);
-          reroute();
-        }}
-      />
-    );
   } else if (screen === 'CHOICE' && routes) {
     view = (
       <RouteChoiceScreen
@@ -665,7 +635,6 @@ export default function App() {
           onWalkDone={() => dispatch({ type: 'WALK_DONE', now: now() })}
           onReroute={reroute}
           onFinish={goHome}
-          onHelp={openHelp}
           onCompass={setCompassTarget}
         />
         {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
@@ -699,7 +668,8 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app app--elder">
+      {sos}
       {view}
       {testMode && <DevTestPanel actions={devActions} info={devInfo} enabled={screen === 'GUIDE' && !!session} />}
     </div>

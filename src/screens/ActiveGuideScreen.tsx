@@ -20,7 +20,6 @@ function RideView(props: {
   onBoarded: () => void;
   onAlighted: () => void;
   onReroute: () => void;
-  onHelp: () => void;
   speak: (text: string) => void;
 }) {
   const { leg, t } = props;
@@ -30,7 +29,7 @@ function RideView(props: {
       <LineBanner visual={leg.visual} label={rideLabel(leg)} />
       {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 줍니다 */}
       {t.phase === 'WAITING_BOARDING' ? (
-        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} onHelp={props.onHelp} speak={props.speak} />
+        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
       ) : (
         <>
           <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
@@ -39,7 +38,6 @@ function RideView(props: {
           ) : (
             <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
           )}
-          <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
         </>
       )}
     </div>
@@ -47,7 +45,7 @@ function RideView(props: {
 }
 
 /**
- * 길 안내 화면. 버튼은 늘 2개 이하: [지금 할 일] + [도움이 필요해요].
+ * 길 안내 화면. 버튼은 [지금 할 일] 하나. 막히면 우측 상단 SOS 버튼으로 가족에게 전화해요.
  * 안내를 그만두려면 폰의 뒤로 버튼을 눌러요 (확인창이 떠요).
  */
 export function ActiveGuideScreen(props: {
@@ -58,7 +56,6 @@ export function ActiveGuideScreen(props: {
   onWalkDone: () => void;
   onReroute: () => void;
   onFinish: () => void;
-  onHelp: () => void;
   /** 걷는 구간에서 나침반 열기 */
   onCompass?: (target: { name: string; lat: number; lng: number }) => void;
 }) {
@@ -81,7 +78,6 @@ export function ActiveGuideScreen(props: {
         onBoarded={props.onBoarded}
         onAlighted={props.onAlighted}
         onReroute={props.onReroute}
-        onHelp={props.onHelp}
         speak={binding.speak}
       />
     );
@@ -97,7 +93,6 @@ export function ActiveGuideScreen(props: {
           onCompass={target && props.onCompass ? () => props.onCompass!(target) : undefined}
           {...binding}
         />
-        <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
       </div>
     );
   }
