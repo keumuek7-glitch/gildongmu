@@ -98,7 +98,7 @@ const S = {
  * 두 휴대폰이 같은 '방'(긴 무작위 이름)을 공유하고, 메시지 종류마다 마지막 것 하나만 둡니다.
  * 방 이름을 아는 휴대폰만 읽고 쓸 수 있습니다(데이터베이스 규칙에서 목록 보기는 막음).
  * 받는 쪽 앱이 열려 있을 때만 바로 뜹니다(닫혀 있으면 다음에 열 때 받음). */
-const DB_DEFAULT = '';
+const DB_DEFAULT = 'https://gildongmu-1df21-default-rtdb.asia-southeast1.firebasedatabase.app';
 const Relay = (() => {
   let es = null, state = 'off'; // off | connecting | on | error
   const listeners = [];
