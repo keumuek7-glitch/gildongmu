@@ -181,7 +181,9 @@ body { margin: 0; background: var(--bg); }
 
 /* ── 타기 전 방향 확인 (역방향 예방) ── */
 .direction-check__look { font-size: 30px; font-weight: 900; margin: 4px 0; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); background: #fff; text-align: center; }
-.direction-check__answers { display: flex; gap: 12px; }
+/* 왼쪽·목적지 쪽·오른쪽: 세 칸을 똑같은 너비로, 폰 화면 밖으로 튀어나오지 않게 */
+.direction-check__answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.direction-check__answers .btn { min-width: 0; padding: 8px 4px; font-size: 26px; line-height: 1.2; word-break: keep-all; }
 .check-result { font-size: 38px; font-weight: 800; margin: 0; padding: 12px; border-radius: var(--radius); background: var(--alert-bg); }
 .check-result--ok { background: var(--guardian-bg); }
 
