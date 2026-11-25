@@ -21,6 +21,10 @@ export function useCompassSensors(active: boolean, sim?: { pos: LatLng | null; h
   const [heading, setHeading] = useState<number | null>(null);
   const [gpsDenied, setGpsDenied] = useState(false);
   const [needPermit, setNeedPermit] = useState(false);
+  /** 방향 센서 허락을 거절했거나 허락 창을 못 띄움 */
+  const [permDenied, setPermDenied] = useState(false);
+  /** 허락이 필요 없는데도(또는 허락 뒤에도) 4초 넘게 방향 값이 안 옴 */
+  const [noHeading, setNoHeading] = useState(false);
   const smooth = useRef<{ s: number; c: number } | null>(null);
 
   const onOrientation = useCallback((e: Event) => {
@@ -31,6 +35,7 @@ export function useCompassSensors(active: boolean, sim?: { pos: LatLng | null; h
     const r = smoothHeading(smooth.current, h);
     smooth.current = { s: r.s, c: r.c };
     setHeading(Math.round(r.heading));
+    setNoHeading(false);
   }, []);
 
   useEffect(() => {
@@ -58,11 +63,29 @@ export function useCompassSensors(active: boolean, sim?: { pos: LatLng | null; h
   }, [active, onOrientation]);
 
   const askPermission = useCallback(async () => {
-    const fn = (DeviceOrientationEvent as unknown as { requestPermission?: PermissionFn }).requestPermission;
-    try { await fn?.(); } catch { /* noop */ }
+    // requestPermission 은 DeviceOrientationEvent 에 붙여서 불러야 하고, 거절·실패를 숨기지 않습니다.
+    const ctor = DeviceOrientationEvent as unknown as { requestPermission?: PermissionFn };
+    try {
+      const r = await ctor.requestPermission?.();
+      if (r === 'denied') {
+        setPermDenied(true);
+        return;
+      }
+    } catch {
+      setPermDenied(true);
+      return;
+    }
+    setPermDenied(false);
     setNeedPermit(false);
   }, []);
 
-  if (sim) return { pos: sim.pos, heading: sim.heading, gpsDenied: false, needPermit: false, askPermission };
-  return { pos, heading, gpsDenied, needPermit: needPermit && heading == null, askPermission };
+  // 센서 허락이 끝났는데(또는 필요 없는데) 4초 넘게 방향 값이 안 오면 이유를 알려 줍니다.
+  useEffect(() => {
+    if (!active || heading != null || needPermit) return;
+    const t = setTimeout(() => setNoHeading(true), 4000);
+    return () => clearTimeout(t);
+  }, [active, heading, needPermit]);
+
+  if (sim) return { pos: sim.pos, heading: sim.heading, gpsDenied: false, needPermit: false, permDenied: false, noHeading: false, askPermission };
+  return { pos, heading, gpsDenied, needPermit: needPermit && heading == null, permDenied: permDenied && heading == null, noHeading: noHeading && heading == null, askPermission };
 }

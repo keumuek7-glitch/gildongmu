@@ -65,6 +65,12 @@ export function CompassView(props: {
       <p className="compass__msg" aria-live="polite">{g.text}</p>
       {g.distanceM != null && <p className="compass__dist">{fmtDist(g.distanceM)}</p>}
       {s.gpsDenied && <p className="status status--error">위치 권한을 켜 주세요</p>}
+      {s.permDenied && (
+        <p className="status status--error">방향 센서가 막혀 있어요. 브라우저 설정에서 '모션 센서'를 허용해 주세요</p>
+      )}
+      {s.noHeading && !s.permDenied && (
+        <p className="status status--error">폰이 방향을 알려 주지 않아요. 브라우저 설정에서 '모션 센서'를 허용해 주세요</p>
+      )}
       {/* 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로] */}
       <div className="compass__actions">
         {s.needPermit ? (

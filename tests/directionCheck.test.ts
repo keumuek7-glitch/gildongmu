@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { boardingCheckFor, busAwayMarginFor, BUS_AWAY_MARGIN_UNKNOWN_M, newAwayTracker, trackAway } from '../src/core/safety/directionCheck';
+import {
+  boardingCheckFor,
+  busAwayMarginFor,
+  BUS_AWAY_MARGIN_UNKNOWN_M,
+  newAwayTracker,
+  stationLabel,
+  trackAway,
+  transferCheckFor,
+} from '../src/core/safety/directionCheck';
 import { distM } from '../src/core/navigation/compass';
 import { buildRouteLegs, isRideLeg } from '../src/core/stateMachine/routeLegBuilder';
 import { parseOdsayResponse } from '../src/core/parser/odsayRouteParser';
@@ -20,28 +28,86 @@ const base: RideLeg = {
   nextStation: '제기동',
 };
 
-describe('타기 전 방향 확인 문구', () => {
-  it('전철: 방면 정보가 있으면 방면으로 묻는다', () => {
-    const c = boardingCheckFor({ ...base, way: '서울역' });
-    expect(c.lookFor).toBe('서울역 방면');
-    expect(c.question).toContain("'서울역 방면'");
-  });
-  it('전철: 방면이 없으면 다음 역 이름으로 묻고, 틀리면 타지 말라고 한다', () => {
+const bus: RideLeg = {
+  ...base,
+  type: 'BUS_LEG',
+  busNo: '100',
+  boardName: 'A정류장',
+  alightName: '서울대병원',
+  stations: ['A정류장', 'B정류장', '서울대병원'],
+  nextStation: 'B정류장',
+};
+
+describe('전철 2차 확인 (승강장): 현재역 ➡ 다음역 방향', () => {
+  it('탑승역 ➡ 다음 역 으로 묻는다', () => {
     const c = boardingCheckFor(base);
-    expect(c.lookFor).toBe('다음 역 제기동');
-    expect(c.question).toContain("'제기동'");
-    expect(c.wrongTitle).toContain('타지 마세요');
+    expect(c.question).toBe("'청량리역' ➡ '제기동역' 방향이 맞나요?");
+    expect(c.yesLabel).toBe('네, 맞아요');
+    expect(c.noLabel).toContain('잘 몰라요');
+  });
+  it('이미 "역"으로 끝나는 이름에는 역을 또 붙이지 않는다', () => {
+    const c = boardingCheckFor({ ...base, boardName: '서울역', nextStation: '남영' });
+    expect(c.question).toBe("'서울역' ➡ '남영역' 방향이 맞나요?");
+  });
+  it('다음 역을 모르면 방면으로 묻고, 방면도 모르면 내릴 곳 방향으로 묻는다 (없는 이름은 지어내지 않음)', () => {
+    const withWay = boardingCheckFor({ ...base, nextStation: undefined, way: '서울역' });
+    expect(withWay.question).toBe("'서울역 방면'이 맞나요?");
+    const noWay = boardingCheckFor({ ...base, nextStation: undefined });
+    expect(noWay.question).toBe("'종로5가 방향'이 맞나요?");
+  });
+  it('아니오·잘 몰라요면 왔던 길로 돌아가 그 방면으로 가라고 한다', () => {
+    const c = boardingCheckFor({ ...base, way: '서울역' });
+    expect(c.wrongTitle).toBe("왔던 길로 돌아가서 '서울역 방면'으로 가세요");
     expect(c.wrongLines.join(' ')).toContain('종로5가 가요?');
   });
-  it('버스: 다음 정류장으로 묻고, 틀리면 건너편 정류장과 기사님께 묻기를 안내한다', () => {
-    const c = boardingCheckFor({ ...base, type: 'BUS_LEG', busNo: '100', boardName: 'A', alightName: 'C', stations: ['A', 'B', 'C'], nextStation: 'B' });
-    expect(c.lookFor).toBe('다음 정류장 B');
-    expect(c.wrongLines.join(' ')).toContain('건너편');
-    expect(c.unsureLines[0]).toContain('기사님');
+  it('방면이 없으면 내릴 곳 방향으로 안내한다', () => {
+    const c = boardingCheckFor(base);
+    expect(c.wrongTitle).toBe("왔던 길로 돌아가서 '종로5가 방향'으로 가세요");
   });
-  it('버스: 다음 정류장을 모르면 버스 번호로 묻는다 (없는 이름은 지어내지 않음)', () => {
-    const c = boardingCheckFor({ ...base, type: 'BUS_LEG', busNo: '100', stations: ['A'], nextStation: undefined });
-    expect(c.lookFor).toBe('100번');
+});
+
+describe('전철 1차 확인 (환승 구간): ○○방면으로 걸어가고 있나요?', () => {
+  it('방면 정보가 있으면 방면으로 묻는다', () => {
+    const c = transferCheckFor({ ...base, way: '서울역' });
+    expect(c.question).toBe("'서울역 방면'으로 걸어가고 있나요?");
+  });
+  it('방면을 모르면 내릴 곳 방향으로 묻는다', () => {
+    const c = transferCheckFor(base);
+    expect(c.question).toBe("'종로5가 방향'으로 걸어가고 있나요?");
+  });
+  it('아니오·잘 몰라요면 왔던 길로 돌아가 그 방면으로 가라고 한다', () => {
+    const c = transferCheckFor({ ...base, way: '서울역' });
+    expect(c.wrongTitle).toBe("왔던 길로 돌아가서 '서울역 방면'으로 가세요");
+  });
+});
+
+describe('버스: 기사님께 방향 확인 (다음 정류장은 묻지 않음)', () => {
+  it('타기 전에 기사님께 방향이 맞는지 물어보라고 안내한다', () => {
+    const c = boardingCheckFor(bus);
+    expect(c.question).toBe("타기 전에 기사님께 '서울대병원 방향'이 맞는지 물어보세요");
+    expect(c.question).not.toContain('다음 정류장');
+    expect(c.yesLabel).toBe('기사님이 맞대요');
+  });
+  it('방면(way) 정보가 있으면 그 방향으로 안내한다', () => {
+    const c = boardingCheckFor({ ...bus, way: '청량리' });
+    expect(c.question).toContain("'청량리 방향'");
+  });
+  it('아니래요·잘 몰라요면 타지 말고 건너편 정류장에서 다시 물어보라고 한다', () => {
+    const c = boardingCheckFor(bus);
+    expect(c.wrongTitle).toContain('타지 마세요');
+    expect(c.wrongLines.join(' ')).toContain('건너편');
+    expect(c.wrongLines.join(' ')).toContain('서울대병원 가요?');
+  });
+});
+
+describe('stationLabel', () => {
+  it('역 이름 뒤에 역을 붙인다', () => {
+    expect(stationLabel('청량리')).toBe('청량리역');
+    expect(stationLabel('역삼')).toBe('역삼역');
+  });
+  it('이미 역으로 끝나면 그대로, 괄호 설명은 뗀다', () => {
+    expect(stationLabel('서울역')).toBe('서울역');
+    expect(stationLabel('제기동(1호선)')).toBe('제기동역');
   });
 });
 

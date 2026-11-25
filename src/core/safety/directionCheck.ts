@@ -1,24 +1,29 @@
 /**
  * 역방향 탑승 예방.
- *  1) 타기 전: 안내판·버스 화면에서 방면/다음 역(정류장)을 직접 확인하게 묻고,
- *     "아니요"면 타지 말고 반대편으로 가도록 안내 (경로 데이터에 있는 이름만 씀)
- *  2) 버스 탄 뒤: GPS상 내릴 곳에서 계속 멀어지면 "지나친 것 같아요"
+ *  1) 전철: 환승 구간에서 "○○방면으로 걸어가고 있나요?"(1차), 승강장에서 "○○역 ➡ ○○역 방향이 맞나요?"(2차)를 묻고,
+ *     "아니오·잘 몰라요"면 왔던 길로 돌아가 ○○방면으로 가도록 안내
+ *  2) 버스: 다음 정류장을 묻지 않고, 타기 전에 기사님께 "○○ 방향이 맞는지" 물어보도록 안내
+ *  (경로 데이터에 있는 이름만 씀 — 없는 이름은 지어내지 않음)
+ *  3) 버스 탄 뒤: GPS상 내릴 곳에서 계속 멀어지면 "지나친 것 같아요"
  * 전철 탄 뒤 감지는 기존 상태 머신(WRONG_DIRECTION_SUSPECTED)이 맡습니다.
  */
 import type { RideLeg } from '../stateMachine/routeLegBuilder';
 
 export interface BoardingCheck {
-  /** 큰 글씨 질문 */
+  /** 큰 글씨 한 문장 (질문 또는 지시) */
   question: string;
-  /** 확인할 이름 (크게 보여 줄 것) */
+  /** 확인할 방향 이름 (예: "서울역 방면", "종로5가 방향") */
   lookFor: string;
-  /** "네" 눌렀을 때 */
+  /** [맞아요] 쪽 버튼 글자 */
+  yesLabel: string;
+  /** [아니오·잘 몰라요] 쪽 버튼 글자 (둘을 한 버튼으로 합쳐 확인 전에는 못 타게 함) */
+  noLabel: string;
+  /** "맞아요" 눌렀을 때 */
   okText: string;
-  /** "아니요" 눌렀을 때 */
+  /** "아니오·잘 몰라요" 눌렀을 때 큰 글씨 한 문장 */
   wrongTitle: string;
+  /** 말소리로만 읽어 주는 이어지는 안내 */
   wrongLines: string[];
-  /** "잘 모르겠어요" 눌렀을 때 */
-  unsureLines: string[];
 }
 
 const q = (s: string) => `'${s}'`;
@@ -38,42 +43,81 @@ export function josa(word: string, withB: string, without: string): string {
   return word + (j ? withB : without);
 }
 
+/** '청량리' → '청량리역' (이미 '역'으로 끝나면 그대로, 괄호 설명은 뗌) */
+export function stationLabel(name: string): string {
+  const n = name.trim().replace(/\s*\([^)]*\)$/, '');
+  return n.endsWith('역') ? n : `${n}역`;
+}
+
+/** 전철 방향 이름: 방면 정보가 있으면 "○○ 방면", 없으면 내릴 곳 기준 "○○ 방향" */
+function subwayDirection(leg: RideLeg): string {
+  return leg.way ? `${leg.way} 방면` : `${leg.alightName} 방향`;
+}
+
+/** 왔던 길로 돌아가 그 방면으로 가라는 큰 글씨 한 문장 (전철 1차·2차 공통) */
+function goBackSentence(dir: string): string {
+  return `왔던 길로 돌아가서 ${josa(q(dir), '으로', '로')} 가세요`;
+}
+
+/**
+ * 전철 1차 확인: 환승 구간을 걷는 동안 "○○방면으로 걸어가고 있나요?"
+ * nextRide 는 갈아탈 전철(RideLeg). 아니오·잘 몰라요면 왔던 길로 돌아가 그 방면으로 가도록 안내.
+ */
+export function transferCheckFor(nextRide: RideLeg): BoardingCheck {
+  const dir = subwayDirection(nextRide);
+  const target = nextRide.alightName;
+  return {
+    question: `${josa(q(dir), '으로', '로')} 걸어가고 있나요?`,
+    lookFor: dir,
+    yesLabel: '네, 맞아요',
+    noLabel: '아니오 · 잘 몰라요',
+    okText: '맞아요. 그대로 가세요',
+    wrongTitle: goBackSentence(dir),
+    wrongLines: [
+      `안내판에서 ${josa(q(dir), '을', '를')} 찾아 그쪽으로 가세요`,
+      `모르면 역무원에게 "${target} 가요?" 하고 물어보세요`,
+    ],
+  };
+}
+
+/**
+ * 타기 전 확인.
+ *  - 전철(2차, 승강장): "○○역 ➡ ○○역 방향이 맞나요?" (탑승역 ➡ 다음 역). 다음 역을 모르면 방면·방향 이름으로 묻습니다.
+ *  - 버스: 다음 정류장을 묻지 않고, 기사님께 "○○ 방향이 맞는지" 물어보라고 안내합니다.
+ */
 export function boardingCheckFor(leg: RideLeg): BoardingCheck {
-  const next = leg.nextStation && leg.nextStation !== leg.boardName ? leg.nextStation : undefined;
   const target = leg.alightName;
   if (leg.type === 'SUBWAY_LEG') {
-    const lookFor = leg.way ? `${leg.way} 방면` : next ? `다음 역 ${next}` : `${target} 방향`;
+    const dir = subwayDirection(leg);
+    const next = leg.nextStation && leg.nextStation !== leg.boardName ? leg.nextStation : undefined;
     return {
-      question: leg.way
-        ? `여기가 ${q(`${leg.way} 방면`)}인가요?`
-        : next
-          ? `다음 역이 ${q(next)}인가요?`
-          : `여기가 ${q(target)} 방향인가요?`,
-      lookFor,
+      question: next
+        ? `${q(stationLabel(leg.boardName))} ➡ ${q(stationLabel(next))} 방향이 맞나요?`
+        : `${josa(q(dir), '이', '가')} 맞나요?`,
+      lookFor: dir,
+      yesLabel: '네, 맞아요',
+      noLabel: '아니오 · 잘 몰라요',
       okText: '맞아요. 타세요',
-      wrongTitle: '반대 방향이에요. 이 열차는 타지 마세요',
+      wrongTitle: goBackSentence(dir),
       wrongLines: [
-        `안내판에서 ${josa(q(lookFor), '을', '를')} 찾아 그쪽 타는 곳으로 가세요`,
+        `안내판에서 ${josa(q(dir), '을', '를')} 찾아 그쪽 타는 곳으로 가세요`,
         '건너편 타는 곳이면 계단이나 승강기로 건너가요',
         `모르면 역무원에게 "${target} 가요?" 하고 물어보세요`,
       ],
-      unsureLines: [`역무원이나 옆 사람에게 "${target} 가는 열차 여기서 타요?" 하고 물어보세요`],
     };
   }
-  const bus = leg.busNo ? `${leg.busNo}번` : '버스';
+  const dir = leg.way ? `${leg.way} 방향` : `${target} 방향`;
   return {
-    question: next
-      ? `다음 정류장이 ${q(next)}인가요?`
-      : `${q(bus)} 버스인가요?`,
-    lookFor: next ? `다음 정류장 ${next}` : bus,
+    question: `타기 전에 기사님께 ${josa(q(dir), '이', '가')} 맞는지 물어보세요`,
+    lookFor: dir,
+    yesLabel: '기사님이 맞대요',
+    noLabel: '아니래요 · 잘 몰라요',
     okText: '맞아요. 타세요',
     wrongTitle: '반대쪽일 수 있어요. 타지 마세요',
     wrongLines: [
       '길 건너편 정류장에서 타야 할 수 있어요',
-      `건너편 정류장에서 ${next ? `다음 정류장이 ${q(next)}인지` : `${q(bus)}인지`} 다시 확인하세요`,
-      `모르면 기사님께 "${target} 가요?" 하고 물어보세요`,
+      `건너편 정류장에서 기사님께 "${target} 가요?" 하고 다시 물어보세요`,
     ],
-    unsureLines: [`탈 때 기사님께 "${target} 가요?" 하고 물어보세요`],
   };
 }
 

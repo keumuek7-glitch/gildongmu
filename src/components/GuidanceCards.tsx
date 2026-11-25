@@ -4,6 +4,8 @@ import type { StationExitGuide } from '../core/metadata/stationTransferMetadata'
 import { walkVM, type GuidanceViewModel } from '../core/tts/guidanceSpeechBuilder';
 import { useCardAutoSpeech } from '../hooks/useCardAutoSpeech';
 import type { LineVisual } from '../core/metadata/subwayLineVisuals';
+import { transferCheckFor } from '../core/safety/directionCheck';
+import { DirectionCheck } from './BoardingDirectionCheck';
 
 export interface SpeechBinding {
   speak: (text: string) => void;
@@ -69,7 +71,7 @@ function WalkMainButton(props: { onDone: () => void; onCompass?: () => void; don
 }
 
 /** 환승 도보 카드: 다음 노선 색 배너 + 승강기 동선. 진입 시 스스로 1회 읽음 */
-export function TransferGuidanceCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
+function TransferWalkBody({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
@@ -79,6 +81,39 @@ export function TransferGuidanceCard({ leg, onDone, onCompass, speak, spoken }: 
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요" />
     </div>
   );
+}
+
+/** 전철 1차 확인: "○○방면으로 걸어가고 있나요?" 처음 한 번 소리로도 물어봅니다. */
+function TransferDirectionAsk(props: SpeechBinding & { next: RideLeg; legId: string; onYes: () => void }) {
+  const check = transferCheckFor(props.next);
+  useCardAutoSpeech(`${props.legId}:DIRCHECK`, check.question, props.speak, props.spoken);
+  return (
+    <div className="stack">
+      <LineBanner visual={props.next.visual} />
+      <DirectionCheck check={check} speak={props.speak} onConfirm={props.onYes} />
+    </div>
+  );
+}
+
+/**
+ * 환승 구간. 갈아탈 것이 전철이면 먼저 "○○방면으로 걸어가고 있나요?"(1차 확인)를 묻고,
+ * [네, 맞아요]를 누르면 걷는 안내 카드로 넘어갑니다. 아니오·잘 몰라요면 왔던 길로 돌아가라고 안내해요.
+ */
+export function TransferGuidanceCard(props: WalkCardProps) {
+  const next = props.leg.nextRide;
+  const [checked, setChecked] = useState(false);
+  if (next?.type === 'SUBWAY_LEG' && !checked) {
+    return (
+      <TransferDirectionAsk
+        next={next}
+        legId={props.leg.id}
+        speak={props.speak}
+        spoken={props.spoken}
+        onYes={() => setChecked(true)}
+      />
+    );
+  }
+  return <TransferWalkBody {...props} />;
 }
 
 /** 노란 큰 글자 한 문장: 몇 번 출구로 나가는지 (누르면 다시 읽어 줘요) */
