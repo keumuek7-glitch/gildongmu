@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ClassifiedRoutes, ScoredRoute } from '../core/classifier/seniorRouteClassifier';
 import { routeKindLabel } from '../core/classifier/routeKindLabel';
+import { BackButton } from '../components/BackButton';
 
 function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRoute }) {
   const { route } = props;
@@ -17,7 +18,7 @@ function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRo
 /**
  * 길 고르기: 한 번에 한 길만 보여 주고 버튼은 2개.
  * 길이 둘이면 [이 길로 안내 시작] [다른 길 보기], 하나뿐이면 [이 길로 안내 시작] [처음으로].
- * (폰의 뒤로 버튼으로도 처음으로 돌아가요)
+ * 왼쪽 위의 작은 [← 뒤로]와 폰의 뒤로 버튼으로도 돌아가요(큰 버튼 개수에는 넣지 않아요).
  */
 export function RouteChoiceScreen(props: {
   destName: string;
@@ -37,6 +38,7 @@ export function RouteChoiceScreen(props: {
   const cur = list[index % list.length];
   return (
     <main className="screen">
+      <BackButton onClick={props.onBack} />
       <header className="screen__header">
         <p className="muted">{props.destName}</p>
       </header>

@@ -201,6 +201,8 @@ button.chip.chip--on { background: var(--primary); color: var(--primary-fg); bor
 }
 .gear-btn:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
 .back-btn { width: auto; align-self: flex-start; }
+/* 화면 왼쪽 위의 작은 뒤로 버튼(BackButton): 큰 버튼 수에 넣지 않으므로 키우지 않음 */
+.back-btn--top { min-height: 56px; font-size: 22px; padding-inline: 20px; }
 .settings-block { border-top: 3px solid #d6d3cb; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .settings-block__title { font-size: 26px; margin: 0; }
 .check-row { display: flex; align-items: center; gap: 12px; font-size: 20px; min-height: 56px; }

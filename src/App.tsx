@@ -476,14 +476,13 @@ export default function App() {
   useBackClose(guideOpen && !!familyGuide && !compassTarget, closeRoadview);
   useBackClose(screen === 'CHOICE', () => setScreen(session ? 'GUIDE' : 'HOME'));
   useBackClose(screen === 'PLACE', () => setScreen('HOME'));
-  // 길 안내 중 뒤로 버튼: 그만할지 먼저 물어봄
-  useBackClose(role === 'elder' && screen === 'GUIDE' && !!session && !session.finished, () => {
-    if (window.confirm('길 안내를 그만할까요?')) {
-      goHome();
-      return;
-    }
-    return 'stay';
-  });
+  // 길 안내 중 뒤로(화면의 [뒤로]·폰의 뒤로 버튼): 그만할지 먼저 물어봄
+  const quitGuide = useCallback((): boolean => {
+    if (!window.confirm('길 안내를 그만할까요?')) return false;
+    goHome();
+    return true;
+  }, [goHome]);
+  useBackClose(role === 'elder' && screen === 'GUIDE' && !!session && !session.finished, () => (quitGuide() ? undefined : 'stay'));
 
   const makePairLink = () => {
     const room = relay.ensureRoom();
@@ -692,6 +691,7 @@ export default function App() {
           onWalkDone={() => dispatch({ type: 'WALK_DONE', now: now() })}
           onReroute={reroute}
           onFinish={goHome}
+          onBack={() => void quitGuide()}
           onCompass={setCompassTarget}
         />
         {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
