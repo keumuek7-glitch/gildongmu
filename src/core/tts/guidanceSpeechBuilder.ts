@@ -127,7 +127,12 @@ export function walkVM(leg: WalkLeg): GuidanceViewModel {
   }
   if (leg.walkKind === 'EXIT') {
     const e = leg.exitGuide;
-    const lines = e ? [`${e.exitNo}번 출구${e.elevatorExit ? '(엘리베이터)' : ''}로 나가세요`, ...e.steps] : ['목적지 방향 출구로 나가세요'];
+    // 탈것에서 내린 게 아니면(가까워서 걷기만 하는 길) 출구 안내는 하지 않아요
+    const lines = e
+      ? [`${e.exitNo}번 출구${e.elevatorExit ? '(엘리베이터)' : ''}로 나가세요`, ...e.steps]
+      : leg.fromName
+        ? ['목적지 방향 출구로 나가세요']
+        : ['가까워서 걸어가는 게 좋아요'];
     lines.push(`약 ${leg.distanceM}m, 천천히 ${minutes}분`);
     return vm(`${leg.toName ?? '목적지'}까지 걸어가요`, lines);
   }

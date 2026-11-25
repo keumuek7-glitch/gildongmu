@@ -8,7 +8,7 @@ import type { RouteCache } from './routeCache';
  * 길을 가져오는 곳(RouteProvider)은 갈아 끼울 수 있어서, 나중에 서울시 공공자료로 앱이 직접 길을 계산하는 방식(A안)을
  * provider 하나로 추가하고 이 파일의 나머지(저장·하루 상한)는 그대로 둡니다.
  */
-export type RouteSource = 'cache' | 'sample' | 'proxy' | 'odsay-browser' | 'subway-local';
+export type RouteSource = 'cache' | 'sample' | 'proxy' | 'odsay-browser' | 'subway-local' | 'walk-local';
 
 export interface RouteProvider {
   readonly id: Exclude<RouteSource, 'cache'>;
@@ -59,8 +59,18 @@ export function createRouteService(deps: {
   cache: RouteCache;
   limit: DailyLimit;
   local?: LocalRouteFinder;
+  /** 가까운 곳(1km 안쪽)은 걷는 길만 앱이 직접 만듭니다. 지하철 계산보다 먼저 봅니다. */
+  walk?: LocalRouteFinder;
 }) {
   async function getRoutes(c: Coords): Promise<RouteResult> {
+    if (deps.walk) {
+      try {
+        const own = await deps.walk(c);
+        if (own && own.length > 0) return { routes: own, source: 'walk-local' };
+      } catch {
+        // 걷는 길 계산이 실패해도 아래로 계속 갑니다.
+      }
+    }
     if (deps.local) {
       try {
         const own = await deps.local(c);

@@ -147,7 +147,8 @@ export function buildRouteLegs(
     // 거리 0인 도보(같은 승강장 환승 등)는 따로 카드로 만들지 않되, 환승이면 안내가 필요하므로 유지
     if (s.distanceM <= 0 && !(prev && next)) return;
 
-    const walkKind: WalkLeg['walkKind'] = prev && next ? 'TRANSFER' : prev ? 'EXIT' : 'ACCESS';
+    // 탈것이 하나도 없는 길(가까워서 걷기만)은 목적지까지 걷는 마지막 구간(EXIT)으로 다룹니다.
+    const walkKind: WalkLeg['walkKind'] = prev && next ? 'TRANSFER' : prev || !next ? 'EXIT' : 'ACCESS';
     const leg: WalkLeg = {
       id: `leg-${i}`,
       type: 'TRANSFER_WALK_LEG',

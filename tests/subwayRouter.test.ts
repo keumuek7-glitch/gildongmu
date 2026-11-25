@@ -36,7 +36,9 @@ const rides = (r: RouteCandidate) => r.segments.filter((s) => s.mode === 'SUBWAY
 
 describe('지하철 지도 만들기 (scripts/buildSubwayGraph.ts)', () => {
   it('저장소에 올려 둔 지도는 올려 둔 원본 자료로 만든 것과 같다 (자료만 바꾸고 지도를 안 만든 실수를 막음)', () => {
-    expect(formatGraph(buildSubwayGraph(RAW))).toBe(readFileSync(path.resolve(__dirname, '..', 'src/data/subwayGraph.json'), 'utf-8'));
+    // Windows에서 받으면 줄바꿈이 \r\n 으로 바뀔 수 있어 \n 으로 맞춰 비교
+    const saved = readFileSync(path.resolve(__dirname, '..', 'src/data/subwayGraph.json'), 'utf-8').replace(/\r\n/g, '\n');
+    expect(formatGraph(buildSubwayGraph(RAW))).toBe(saved);
   });
 
   it('이름이 다른 역은 한 이름으로 맞춰진다 (서울/서울역, 신내/신내역, 이수/총신대입구, 자양/뚝섬유원지)', () => {

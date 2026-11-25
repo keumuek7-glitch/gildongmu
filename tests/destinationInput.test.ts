@@ -25,8 +25,9 @@ describe('routeKindLabel', () => {
     expect(routeKindLabel({ segments: [seg('SUBWAY'), seg('BUS'), seg('SUBWAY')] })).toBe('전철+버스');
     expect(routeKindLabel({ segments: [seg('SUBWAY'), seg('WALK'), seg('SUBWAY')] })).toBe('전철');
   });
-  it('걷기만 있으면 빈 글자', () => {
-    expect(routeKindLabel({ segments: [seg('WALK')] })).toBe('');
+  it('걷기만 있으면 "걷기" (가까운 곳), 아무것도 없으면 빈 글자', () => {
+    expect(routeKindLabel({ segments: [seg('WALK')] })).toBe('걷기');
+    expect(routeKindLabel({ segments: [] })).toBe('');
   });
 });
 
