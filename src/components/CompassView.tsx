@@ -44,8 +44,14 @@ export function CompassView(props: {
   const cy = 205;
   const marks = g.targetBearing == null ? [] : nsewPositions(cx, cy, 165, g.targetBearing);
 
+  // [로드뷰]가 아래 두 번째 버튼 자리를 쓰면 [← 뒤로]가 사라지므로, 그때는 왼쪽 위에 작은 [← 뒤로]를 둡니다.
+  const roadviewShown = !!props.onRoadview && !s.needPermit;
+
   return (
     <div className={`compass ${aligned ? 'compass--aligned' : ''}`} role="dialog" aria-label="나침반">
+      {roadviewShown && (
+        <button className="btn btn--ghost compass__back" onClick={props.onClose}>← 뒤로</button>
+      )}
       <div className="compass__dest">🚩 {props.target.name}</div>
       <svg className="compass__svg" viewBox="0 0 350 440" role="img" aria-label="목적지 방향">
         <g className="compass__nsew">
@@ -71,14 +77,14 @@ export function CompassView(props: {
       {s.noHeading && !s.permDenied && (
         <p className="status status--error">폰이 방향을 알려 주지 않아요. 브라우저 설정에서 '모션 센서'를 허용해 주세요</p>
       )}
-      {/* 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로] */}
+      {/* 큰 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로(로드뷰가 없을 때)] */}
       <div className="compass__actions">
         {s.needPermit ? (
           <button className="btn btn--primary" onClick={() => void s.askPermission()}>나침반 켜기</button>
         ) : (
           <button className="btn btn--primary" onClick={props.onArrived}>도착했어요</button>
         )}
-        {props.onRoadview && !s.needPermit ? (
+        {roadviewShown ? (
           <button className="btn btn--secondary" onClick={props.onRoadview}>로드뷰</button>
         ) : (
           <button className="btn btn--secondary" onClick={props.onClose}>← 뒤로</button>

@@ -15,10 +15,28 @@ export interface GuidanceViewModel {
   speech: string;
 }
 
-/** TTS 발음 전처리: '4-2번 문' → '4 다시 2번 문', '30m' → '30미터' */
+const NATIVE_UNITS = ['', '한', '두', '세', '네', '다섯', '여섯', '일곱', '여덟', '아홉'];
+const NATIVE_TENS = ['', '열', '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔'];
+
+/**
+ * 셀 때 쓰는 우리말 수 (뒤에 '정거장'처럼 세는 말이 붙을 때): 3 → '세', 5 → '다섯', 12 → '열두', 20 → '스무'.
+ * 1~99만 바꾸고, 0이나 100 이상은 null (숫자 그대로 둠).
+ */
+export function nativeCountWord(n: number): string | null {
+  if (!Number.isInteger(n) || n < 1 || n > 99) return null;
+  if (n === 20) return '스무';
+  return NATIVE_TENS[Math.floor(n / 10)] + NATIVE_UNITS[n % 10];
+}
+
+/** TTS 발음 전처리: '4-2번 문' → '4 다시 2번 문', '30m' → '30미터', '3정거장' → '세 정거장' */
 export function preprocessForSpeech(text: string): string {
   return text
     .replace(/(\d+)\s*-\s*(\d+)/g, '$1 다시 $2')
+    // 정거장은 우리말 수로 읽어요 ('삼정거장' ✕ → '세 정거장'). 숫자가 다른 숫자에 붙어 있으면(소수점 등) 건드리지 않음
+    .replace(/(?<![\d.])(\d{1,2})\s*정거장/g, (m, d: string) => {
+      const w = nativeCountWord(Number(d));
+      return w ? `${w} 정거장` : m;
+    })
     .replace(/(\d+(?:\.\d+)?)\s*km\b/gi, '$1킬로미터')
     .replace(/(\d+(?:\.\d+)?)\s*m\b/gi, '$1미터')
     .replace(/[·|]/g, ', ')

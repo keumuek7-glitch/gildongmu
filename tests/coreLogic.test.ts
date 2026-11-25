@@ -311,6 +311,23 @@ describe('TTS 전처리·노선색·보호자 기능', () => {
     expect(preprocessForSpeech('1.2km')).toBe('1.2킬로미터');
   });
 
+  it('정거장은 우리말 수로 읽는다 (삼정거장 ✕ → 세 정거장)', () => {
+    expect(preprocessForSpeech('3정거장 남았어요')).toBe('세 정거장 남았어요');
+    expect(preprocessForSpeech('종로5가까지 5정거장 남았어요')).toBe('종로5가까지 다섯 정거장 남았어요');
+    expect(preprocessForSpeech('1정거장')).toBe('한 정거장');
+    expect(preprocessForSpeech('2정거장')).toBe('두 정거장');
+    expect(preprocessForSpeech('4정거장')).toBe('네 정거장');
+    expect(preprocessForSpeech('12정거장')).toBe('열두 정거장');
+    expect(preprocessForSpeech('20정거장')).toBe('스무 정거장');
+    expect(preprocessForSpeech('21정거장')).toBe('스물한 정거장');
+    expect(preprocessForSpeech('99정거장')).toBe('아흔아홉 정거장');
+  });
+  it('정거장 앞 숫자 말고 다른 숫자는 그대로 (호선·번·분)', () => {
+    expect(preprocessForSpeech('1호선 4-2번 문, 5분 뒤 3정거장')).toBe('1호선 4 다시 2번 문, 5분 뒤 세 정거장');
+    expect(preprocessForSpeech('0정거장')).toBe('0정거장');
+    expect(preprocessForSpeech('100정거장')).toBe('100정거장');
+  });
+
   it('노선색 조회', () => {
     expect(getLineVisual('수도권 2호선')).toMatchObject({ bgHex: '#00A84D', colorName: '초록색' });
     expect(getLineVisual(undefined, 4).key).toBe('4호선');
