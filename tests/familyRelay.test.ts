@@ -165,3 +165,14 @@ describe('FamilyRelayClient', () => {
     expect(c.ensureRoom()).toBe(r1);
   });
 });
+
+describe('가족이 보낸 방향 색(tint)', () => {
+  it('링크에 담긴 left/right는 그대로, 없거나 이상하면 목적지(dest)', async () => {
+    const { parseGuideLink, parseGuideTint } = await import('../src/core/guardian/familyRelay');
+    const mk = (tint?: string) => `?go=${encodeURIComponent(JSON.stringify({ g: { lat: 37.5, lng: 127, pan: 10, phrase: '곧장 가요', tint } }))}`;
+    expect(parseGuideLink(mk('left'))!.guide.tint).toBe('left');
+    expect(parseGuideLink(mk('right'))!.guide.tint).toBe('right');
+    expect(parseGuideLink(mk())!.guide.tint).toBe('dest');
+    expect(parseGuideTint('red')).toBe('dest');
+  });
+});

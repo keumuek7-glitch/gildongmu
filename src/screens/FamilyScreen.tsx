@@ -18,6 +18,7 @@ export interface GuideToSend {
   lng: number;
   pan: number;
   phrase: string;
+  tint: 'dest' | 'left' | 'right';
   t: number;
 }
 
@@ -72,8 +73,8 @@ const TINT_ARROW: Record<DirTint, string> = { dest: '#15803d', left: '#0ea5e9', 
 export function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onSend: (g: GuideToSend) => void; onClose: () => void }) {
   const destPan = () => (props.dest ? Math.round(bearingDeg(props.elder, props.dest)) : Math.round(props.elder.heading ?? 0));
   const [pan, setPan] = useState(destPan);
-  const [tint, setTint] = useState<DirTint | null>(null);
-  const arrowColor = tint ? TINT_ARROW[tint] : '#1546C8';
+  const [tint, setTint] = useState<DirTint>('dest');
+  const arrowColor = TINT_ARROW[tint];
   const tintBtn = (t: DirTint) => `btn btn--secondary ${tint === t ? `btn--tint-${t}` : ''}`;
   const [phrase, setPhrase] = useState<string>(PHRASES[0]);
   const [custom, setCustom] = useState('');
@@ -112,7 +113,7 @@ export function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | nu
       <button
         className="btn btn--primary"
         onClick={() =>
-          props.onSend({ lat: +props.elder.lat.toFixed(6), lng: +props.elder.lng.toFixed(6), pan: Math.round(pan), phrase: finalPhrase, t: Date.now() })
+          props.onSend({ lat: +props.elder.lat.toFixed(6), lng: +props.elder.lng.toFixed(6), pan: Math.round(pan), phrase: finalPhrase, tint, t: Date.now() })
         }
       >
         “{finalPhrase}” 보내기

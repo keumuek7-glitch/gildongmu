@@ -25,7 +25,7 @@ describe('카톡으로 보내는 길 안내 링크 (?go=, 기존 길동무와 �
     const url = buildGuideLink('https://keumuek7-glitch.github.io/gildongmu/?role=child', data);
     const r = parseGuideLink(new URL(url).search);
     expect(new URL(url).searchParams.get('role')).toBe('elder');
-    expect(r?.guide).toEqual(data.g);
+    expect(r?.guide).toEqual({ ...data.g, tint: 'dest' });
     expect(r?.trip?.dest).toEqual(data.trip.dest);
   });
   it('기존 앱이 보낸 링크 모양(trip.stop 포함)도 읽는다', () => {
