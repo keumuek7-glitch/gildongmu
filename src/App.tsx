@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { HomeScreen, type Favorite } from './screens/HomeScreen';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { HomeScreen, type Favorite, type HomeDestination } from './screens/HomeScreen';
 import { RouteChoiceScreen } from './screens/RouteChoiceScreen';
 import { ActiveGuideScreen } from './screens/ActiveGuideScreen';
 import { MissedStopRecoveryBanner } from './components/MissedStopRecoveryBanner';
-import { SafetyBar } from './components/SafetyBar';
+import { HelpScreen } from './screens/HelpScreen';
+import { BusAwayScreen } from './components/BusAwayScreen';
+import { useBackClose } from './hooks/useBackClose';
 import { DevTestPanel, type DevActions } from './components/DevTestPanel';
 import { classifyRoutes, type ClassifiedRoutes, type ScoredRoute } from './core/classifier/seniorRouteClassifier';
 import { buildRouteLegs, isRideLeg } from './core/stateMachine/routeLegBuilder';
@@ -119,7 +121,9 @@ export default function App() {
   const [warning, setWarning] = useState<ReconcileWarning>({ kind: 'NONE' });
   const [pendingRestore, setPendingRestore] = useState<ReconcileResult | null>(null);
   const [guardianPhone, setGuardianPhone] = useState(readPhone);
-  const [sosBusy, setSosBusy] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locNote, setLocNote] = useState<string | null>(null);
   const [simOffset, setSimOffset] = useState(0);
   const simOffsetRef = useRef(0);
 
@@ -171,15 +175,38 @@ export default function App() {
     setRole(r);
   }, []);
 
-  const sendMyLocation = useCallback(async () => {
-    const loc = await getCurrentLocation(8000);
-    if (loc.source !== 'GPS') {
-      setNotice('위치를 못 찾았어요. 위치 권한을 켜 주세요');
-      return;
-    }
-    relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
-    setNotice(relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
-  }, [relay]);
+  /**
+   * 내 위치를 가족에게 보냅니다. withSms 이면 보호자에게 보낼 문자 화면도 엽니다(도움 화면).
+   * 가족 앱으로는 연결돼 있을 때만 가고, 문자는 연결과 상관없이 열립니다.
+   */
+  const shareLocation = useCallback(
+    async (withSms: boolean) => {
+      setLocBusy(true);
+      setLocNote(null);
+      try {
+        const loc = await getCurrentLocation(8000);
+        const gps = loc.source === 'GPS';
+        if (gps) relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
+        setLocNote(!gps ? '위치를 못 찾았어요. 위치 권한을 켜 주세요' : relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
+        if (withSms) {
+          const s = sessionRef.current;
+          const leg = s ? currentLeg(s) : undefined;
+          const step = s && leg && isRideLeg(leg) && s.transit ? currentTransitVM(leg, s.transit).title : undefined;
+          const body = buildSosMessage({
+            lat: loc.y,
+            lng: loc.x,
+            approximate: !gps,
+            destName: s?.destName ?? dest?.name,
+            currentStep: step,
+          });
+          window.location.href = buildSmsUri(guardianPhone, body, navigator.userAgent);
+        }
+      } finally {
+        setLocBusy(false);
+      }
+    },
+    [relay, dest, guardianPhone],
+  );
   const speech = useMemo(() => createWebSpeechAdapter(), []);
   const now = useCallback(() => Date.now() + simOffsetRef.current, []);
   const speakText = useCallback((t: string) => speech.speak(t), [speech]);
@@ -290,27 +317,6 @@ export default function App() {
     apply({ state: null, effects: [] });
     setScreen('HOME');
   }, [apply, clearPersisted]);
-
-  // ── 보호자 위치 전송(SOS) ─────────────────────────────
-  const sendSos = useCallback(async () => {
-    setSosBusy(true);
-    try {
-      const loc = await getCurrentLocation(5000);
-      const s = sessionRef.current;
-      const leg = s ? currentLeg(s) : undefined;
-      const step = s && leg && isRideLeg(leg) && s.transit ? currentTransitVM(leg, s.transit).title : undefined;
-      const body = buildSosMessage({
-        lat: loc.y,
-        lng: loc.x,
-        approximate: loc.source !== 'GPS',
-        destName: s?.destName ?? dest?.name,
-        currentStep: step,
-      });
-      window.location.href = buildSmsUri(guardianPhone, body, navigator.userAgent);
-    } finally {
-      setSosBusy(false);
-    }
-  }, [dest, guardianPhone]);
 
   // ── 개발자 테스트 패널 동작 ─────────────────────────────
   const advanceClock = useCallback((ms: number) => {
@@ -442,6 +448,22 @@ export default function App() {
     return `시뮬레이션 시계 +${Math.round(simOffset / 1000)}초 · 상태: ${phase ?? '-'}`;
   })();
 
+  // ── 폰의 뒤로 버튼 ──────────────────────────────────
+  const closeRoadview = useCallback(() => setGuideOpen(false), []);
+  useBackClose(settingsOpen, () => setSettingsOpen(false));
+  useBackClose(!!compassTarget, () => setCompassTarget(null));
+  useBackClose(guideOpen && !!familyGuide && !compassTarget, closeRoadview);
+  useBackClose(helpOpen, () => setHelpOpen(false));
+  useBackClose(screen === 'CHOICE', () => setScreen(session ? 'GUIDE' : 'HOME'));
+  // 길 안내 중 뒤로 버튼: 그만할지 먼저 물어봄
+  useBackClose(role === 'elder' && screen === 'GUIDE' && !!session && !session.finished, () => {
+    if (window.confirm('길 안내를 그만할까요?')) {
+      goHome();
+      return;
+    }
+    return 'stay';
+  });
+
   const makePairLink = () => {
     const room = relay.ensureRoom();
     setPaired(true);
@@ -468,6 +490,13 @@ export default function App() {
           onSavePhone={(p) => {
             setGuardianPhone(p);
             try { localStorage.setItem(PHONE_KEY, p); } catch { /* noop */ }
+          }}
+          onShareLocation={role === 'elder' ? () => void shareLocation(false) : undefined}
+          locationNote={locNote}
+          hasFamilyGuide={!!familyGuide}
+          onOpenFamilyGuide={() => {
+            setSettingsOpen(false);
+            setGuideOpen(true);
           }}
           testMode={testMode}
           onToggleTestMode={(on) => {
@@ -525,132 +554,155 @@ export default function App() {
     );
   }
 
-  return (
-    <div className={`app ${screen === 'GUIDE' ? 'app--with-safety' : ''}`}>
-      {screen === 'HOME' && (
-        <HomeScreen
-          favorites={FAVORITES}
-          guardianDest={relayDest ?? guardianDest}
-          resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
-          originWarning={originLabel.startsWith('현재 위치') ? null : originLabel}
-          notice={notice}
-          hasFamilyGuide={!!familyGuide}
-          loading={loading}
-          error={error}
-          onGo={(d) => void searchRoutes(d)}
-          onResume={() => {
-            if (!pendingRestore?.state) return;
-            apply({ state: pendingRestore.state, effects: pendingRestore.effects });
-            setWarning(pendingRestore.warning);
-            setPendingRestore(null);
-            setScreen('GUIDE');
-          }}
-          onDiscardResume={() => {
-            clearPersisted();
-            setPendingRestore(null);
-          }}
-          onOpenFamilyGuide={() => setGuideOpen(true)}
-          onSendMyLocation={() => void sendMyLocation()}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-      )}
+  // 어르신 화면: 한 번에 한 화면만 그리고, 어느 화면이든 버튼은 2개 이하입니다.
+  const familyDest = relayDest ?? guardianDest;
+  const fav = FAVORITES[0];
+  const homeDestination: HomeDestination = familyDest
+    ? { label: `🚩 ${familyDest.name}`, sub: '가족이 보낸 목적지', name: familyDest.name, x: familyDest.x, y: familyDest.y }
+    : { label: fav.label, sub: fav.name, name: fav.name, x: fav.x, y: fav.y };
 
-      {screen === 'CHOICE' && routes && (
-        <RouteChoiceScreen
-          destName={dest?.name ?? '목적지'}
-          routes={routes}
-          onPick={pickRoute}
-          onBack={() => setScreen(session ? 'GUIDE' : 'HOME')}
-        />
-      )}
+  const openHelp = () => {
+    setLocNote(null);
+    setHelpOpen(true);
+  };
 
-      {screen === 'GUIDE' && session && (
-        <>
-          <MissedStopRecoveryBanner
-            warning={warning}
-            onReroute={reroute}
-            onDismiss={() => setWarning({ kind: 'NONE' })}
-          />
-          <ActiveGuideScreen
-            session={session}
-            binding={binding}
-            onBoarded={() => dispatch({ type: 'BOARDED', now: now() })}
-            onAlighted={() => dispatch({ type: 'USER_ALIGHTED', now: now() })}
-            onWalkDone={() => dispatch({ type: 'WALK_DONE', now: now() })}
-            onReroute={reroute}
-            onFinish={goHome}
-            onCompass={setCompassTarget}
-          />
-          {busAway && busLeg && !busAlert && (
-            <div className="banner banner--warning" role="alert">
-              <p className="banner__title">지나친 것 같아요</p>
-              <p>{josa(busLeg.alightName, '을', '를')} 지나쳐 멀어지고 있어요. 다음 정류장에서 내려서 길을 다시 찾아요.</p>
-              <button className="btn btn--primary" onClick={() => { setBusAway(false); reroute(); }}>
-                지금 위치에서 길 다시 찾기
-              </button>
-              <button className="btn btn--secondary" onClick={() => setBusAway(false)}>괜찮아요, 맞게 가고 있어요</button>
-            </div>
-          )}
-          {busAlert && busLeg && (
-            <BusAlightBanner
-              alert={busAlert}
-              stopName={busLeg.alightName}
-              onAlighted={() => {
-                setBusAlert(null);
-                dispatch({ type: 'USER_ALIGHTED', now: now() });
-              }}
-              onDismiss={() => setBusAlert(null)}
-            />
-          )}
-          {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
-          {error && <p className="status status--error" role="alert">{error}</p>}
-        </>
-      )}
-
-      {guideOpen && familyGuide && !compassTarget && (
-        <RoadviewGuide
-          guide={familyGuide}
-          speak={speakText}
-          onClose={() => setGuideOpen(false)}
-          onCompass={
-            (relayDest ?? dest)
-              ? () => {
-                  const d = relayDest ?? dest!;
-                  setCompassTarget({ name: d.name, lat: d.y, lng: d.x });
-                }
-              : undefined
+  let view: ReactNode;
+  if (busAlert && busLeg) {
+    view = (
+      <BusAlightBanner
+        alert={busAlert}
+        stopName={busLeg.alightName}
+        onAlighted={() => {
+          setBusAlert(null);
+          dispatch({ type: 'USER_ALIGHTED', now: now() });
+        }}
+        onDismiss={() => setBusAlert(null)}
+      />
+    );
+  } else if (screen === 'GUIDE' && busAway && busLeg) {
+    view = (
+      <BusAwayScreen
+        stopName={busLeg.alightName}
+        onReroute={() => {
+          setBusAway(false);
+          reroute();
+        }}
+        onDismiss={() => setBusAway(false)}
+      />
+    );
+  } else if (screen === 'GUIDE' && warning.kind !== 'NONE') {
+    view = (
+      <MissedStopRecoveryBanner
+        warning={warning}
+        onReroute={reroute}
+        onDismiss={() => setWarning({ kind: 'NONE' })}
+      />
+    );
+  } else if (compassTarget) {
+    view = (
+      <CompassView
+        target={compassTarget}
+        speak={speakText}
+        testMode={testMode}
+        onClose={() => setCompassTarget(null)}
+        onRoadview={familyGuide ? () => { setCompassTarget(null); setGuideOpen(true); } : undefined}
+        onArrived={() => {
+          setCompassTarget(null);
+          setGuideOpen(false);
+          if (screen === 'GUIDE' && sessionRef.current && !sessionRef.current.finished) {
+            dispatch({ type: 'WALK_DONE', now: now() });
+          } else if (role === 'elder') {
+            relay.send('arrived', { name: compassTarget.name });
+            setNotice('도착했어요');
           }
+        }}
+      />
+    );
+  } else if (guideOpen && familyGuide) {
+    view = (
+      <RoadviewGuide
+        guide={familyGuide}
+        speak={speakText}
+        onClose={closeRoadview}
+        onCompass={
+          (relayDest ?? dest)
+            ? () => {
+                const d = relayDest ?? dest!;
+                setCompassTarget({ name: d.name, lat: d.y, lng: d.x });
+              }
+            : undefined
+        }
+      />
+    );
+  } else if (helpOpen) {
+    view = (
+      <HelpScreen
+        busy={locBusy}
+        note={locNote}
+        onShareLocation={() => void shareLocation(true)}
+        onReroute={() => {
+          setHelpOpen(false);
+          reroute();
+        }}
+      />
+    );
+  } else if (screen === 'CHOICE' && routes) {
+    view = (
+      <RouteChoiceScreen
+        destName={dest?.name ?? '목적지'}
+        routes={routes}
+        onPick={pickRoute}
+        onBack={() => setScreen(session ? 'GUIDE' : 'HOME')}
+      />
+    );
+  } else if (screen === 'GUIDE' && session) {
+    view = (
+      <>
+        <ActiveGuideScreen
+          session={session}
+          binding={binding}
+          onBoarded={() => dispatch({ type: 'BOARDED', now: now() })}
+          onAlighted={() => dispatch({ type: 'USER_ALIGHTED', now: now() })}
+          onWalkDone={() => dispatch({ type: 'WALK_DONE', now: now() })}
+          onReroute={reroute}
+          onFinish={goHome}
+          onHelp={openHelp}
+          onCompass={setCompassTarget}
         />
-      )}
+        {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
+        {error && <p className="status status--error" role="alert">{error}</p>}
+      </>
+    );
+  } else {
+    view = (
+      <HomeScreen
+        destination={homeDestination}
+        resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
+        originWarning={originLabel.startsWith('현재 위치') ? null : originLabel}
+        notice={notice}
+        loading={loading}
+        error={error}
+        onGo={(d) => void searchRoutes(d)}
+        onResume={() => {
+          if (!pendingRestore?.state) return;
+          apply({ state: pendingRestore.state, effects: pendingRestore.effects });
+          setWarning(pendingRestore.warning);
+          setPendingRestore(null);
+          setScreen('GUIDE');
+        }}
+        onDiscardResume={() => {
+          clearPersisted();
+          setPendingRestore(null);
+        }}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+    );
+  }
 
-      {compassTarget && (
-        <CompassView
-          target={compassTarget}
-          speak={speakText}
-          onClose={() => setCompassTarget(null)}
-          onRoadview={familyGuide ? () => { setCompassTarget(null); setGuideOpen(true); } : undefined}
-          onArrived={() => {
-            setCompassTarget(null);
-            setGuideOpen(false);
-            if (screen === 'GUIDE' && sessionRef.current && !sessionRef.current.finished) {
-              dispatch({ type: 'WALK_DONE', now: now() });
-            } else if (role === 'elder') {
-              relay.send('arrived', { name: compassTarget.name });
-              setNotice('도착했어요');
-            }
-          }}
-        />
-      )}
-
+  return (
+    <div className="app">
+      {view}
       {testMode && <DevTestPanel actions={devActions} info={devInfo} enabled={screen === 'GUIDE' && !!session} />}
-
-      {screen === 'GUIDE' && (
-        <SafetyBar
-          onOtherRoute={() => (routes ? setScreen('CHOICE') : reroute())}
-          onSos={() => void sendSos()}
-          sosBusy={sosBusy}
-        />
-      )}
     </div>
   );
 }

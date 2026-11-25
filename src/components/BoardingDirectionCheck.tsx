@@ -2,13 +2,19 @@ import { useState } from 'react';
 import type { RideLeg } from '../core/stateMachine/routeLegBuilder';
 import { boardingCheckFor } from '../core/safety/directionCheck';
 
-type Step = 'ASK' | 'OK' | 'WRONG' | 'UNSURE';
+type Step = 'ASK' | 'OK' | 'WRONG';
 
 /**
- * 타기 전 방향 확인 (역방향 탑승 예방).
- * "네"나 "잘 모르겠어요"(물어보기 안내 후)를 눌러야 '탔어요' 버튼이 나옵니다.
+ * 타기 전 방향 확인 (역방향 예방). 화면의 버튼은 늘 2개 이하입니다.
+ * [네, 맞아요] 를 눌러야만 '탔어요' 버튼이 나옵니다.
+ * "아니에요"와 "잘 모르겠어요"는 한 버튼으로 합쳐서, 확인되기 전에는 탈 수 없게 했습니다.
  */
-export function BoardingDirectionCheck(props: { leg: RideLeg; onBoarded: () => void; speak: (t: string) => void }) {
+export function BoardingDirectionCheck(props: {
+  leg: RideLeg;
+  onBoarded: () => void;
+  onHelp: () => void;
+  speak: (t: string) => void;
+}) {
   const { leg, speak } = props;
   const c = boardingCheckFor(leg);
   const [step, setStep] = useState<Step>('ASK');
@@ -16,41 +22,41 @@ export function BoardingDirectionCheck(props: { leg: RideLeg; onBoarded: () => v
 
   if (step === 'WRONG') {
     return (
-      <div className="card card--warning" role="alert">
-        <p className="card__title">⛔ {c.wrongTitle}</p>
-        <ul className="card__lines">{c.wrongLines.map((l) => <li key={l}>{l}</li>)}</ul>
+      <div className="stack">
+        <div className="card card--warning" role="alert">
+          <p className="card__title">⛔ {c.wrongTitle}</p>
+          <ul className="card__lines">{c.wrongLines.map((l) => <li key={l}>{l}</li>)}</ul>
+        </div>
         <button className="btn btn--primary" onClick={() => { setStep('ASK'); speak(c.question); }}>다시 확인하기</button>
+        <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
       </div>
     );
   }
 
-  if (step === 'OK' || step === 'UNSURE') {
+  if (step === 'OK') {
     return (
       <div className="stack">
-        <p className={`check-result ${step === 'OK' ? 'check-result--ok' : ''}`}>
-          {step === 'OK' ? `✅ ${c.okText}` : c.unsureLines[0]}
-        </p>
+        <p className="check-result check-result--ok">✅ {c.okText}</p>
         <button className="btn btn--primary" onClick={props.onBoarded}>{boardLabel}</button>
-        <button className="btn btn--ghost" onClick={() => setStep('ASK')}>다시 확인하기</button>
+        <button className="btn btn--secondary" onClick={() => setStep('ASK')}>다시 확인하기</button>
       </div>
     );
   }
 
   return (
-    <div className="card card--alert direction-check">
-      <p className="card__title">타기 전에 방향을 확인해요</p>
-      <p className="direction-check__look">{c.lookFor}</p>
-      <p>{c.question}</p>
-      <div className="direction-check__answers">
-        <button className="btn btn--primary" onClick={() => { setStep('OK'); speak(c.okText); }}>네, 맞아요</button>
-        <button
-          className="btn btn--secondary"
-          onClick={() => { setStep('WRONG'); speak(`${c.wrongTitle}. ${c.wrongLines[0]}`); }}
-        >
-          아니요
-        </button>
+    <div className="stack">
+      <div className="card card--alert direction-check">
+        <p className="card__title">타기 전에 방향을 확인해요</p>
+        <p className="direction-check__look">{c.lookFor}</p>
+        <p>{c.question}</p>
       </div>
-      <button className="btn btn--ghost" onClick={() => { setStep('UNSURE'); speak(c.unsureLines[0]); }}>잘 모르겠어요</button>
+      <button className="btn btn--primary" onClick={() => { setStep('OK'); speak(c.okText); }}>네, 맞아요</button>
+      <button
+        className="btn btn--secondary"
+        onClick={() => { setStep('WRONG'); speak(`${c.wrongTitle}. ${c.wrongLines[0]}`); }}
+      >
+        아니에요 · 잘 모르겠어요
+      </button>
     </div>
   );
 }

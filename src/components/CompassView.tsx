@@ -17,6 +17,8 @@ export function CompassView(props: {
   onArrived: () => void;
   onRoadview?: () => void;
   speak?: (text: string) => void;
+  /** 시험 버튼(가짜 위치·방향)을 보일지 */
+  testMode?: boolean;
 }) {
   const [sim, setSim] = useState<{ pos: LatLng | null; heading: number | null } | null>(null);
   const s = useCompassSensors(true, sim);
@@ -44,7 +46,6 @@ export function CompassView(props: {
 
   return (
     <div className={`compass ${aligned ? 'compass--aligned' : ''}`} role="dialog" aria-label="나침반">
-      <button className="btn btn--ghost compass__back" onClick={props.onClose}>← 뒤로</button>
       <div className="compass__dest">🚩 {props.target.name}</div>
       <svg className="compass__svg" viewBox="0 0 350 440" role="img" aria-label="목적지 방향">
         <g className="compass__nsew">
@@ -64,16 +65,21 @@ export function CompassView(props: {
       <p className="compass__msg" aria-live="polite">{g.text}</p>
       {g.distanceM != null && <p className="compass__dist">남은 거리(직선) {fmtDist(g.distanceM)}</p>}
       {s.gpsDenied && <p className="status status--error">위치 권한을 켜 주세요</p>}
-      {s.needPermit && (
-        <button className="btn btn--secondary" onClick={() => void s.askPermission()}>나침반 켜기</button>
-      )}
+      {/* 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로] */}
       <div className="compass__actions">
-        {props.onRoadview && (
-          <button className="btn btn--secondary" onClick={props.onRoadview}>로드뷰</button>
+        {s.needPermit ? (
+          <button className="btn btn--primary" onClick={() => void s.askPermission()}>나침반 켜기</button>
+        ) : (
+          <button className="btn btn--primary" onClick={props.onArrived}>도착했어요</button>
         )}
-        <button className="btn btn--primary" onClick={props.onArrived}>도착했어요</button>
+        {props.onRoadview && !s.needPermit ? (
+          <button className="btn btn--secondary" onClick={props.onRoadview}>로드뷰</button>
+        ) : (
+          <button className="btn btn--secondary" onClick={props.onClose}>← 뒤로</button>
+        )}
       </div>
 
+      {props.testMode && (
       <details className="settings compass__sim">
         <summary>🛠 시험: 가짜 위치·방향</summary>
         <button
@@ -94,6 +100,7 @@ export function CompassView(props: {
         </label>
         {sim && <button className="btn btn--ghost" onClick={() => setSim(null)}>실제 센서 쓰기</button>}
       </details>
+      )}
     </div>
   );
 }

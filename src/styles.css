@@ -197,3 +197,16 @@ button.chip.chip--on { background: var(--primary); color: var(--primary-fg); bor
 .check-row { display: flex; align-items: center; gap: 12px; font-size: 20px; min-height: 56px; }
 .check-row input { width: 28px; height: 28px; flex: none; }
 .stops-fold summary { cursor: pointer; font-weight: 700; min-height: 48px; display: flex; align-items: center; }
+
+/* ── 버튼 2개 이하 화면용: 눌러서 다시 읽는 카드, 화면 전체 알림 ── */
+.card--tap { cursor: pointer; }
+.card--tap:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
+.card__hint { margin: 6px 0 0; font-size: 18px; color: var(--muted); }
+.rv-guide__phrase { margin: 0; cursor: pointer; }
+.takeover {
+  position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  padding: 24px 16px; max-width: 720px; margin: 0 auto; background: var(--alert-bg);
+}
+.takeover--warning { background: var(--warning-bg); }
+.takeover__title { font-size: 34px; line-height: 1.3; margin: 0; }
+.takeover__text { font-size: 24px; margin: 0; }

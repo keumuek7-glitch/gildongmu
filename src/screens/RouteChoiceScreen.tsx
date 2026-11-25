@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ClassifiedRoutes, ScoredRoute } from '../core/classifier/seniorRouteClassifier';
 import { getLineVisual, BUS_VISUAL } from '../core/metadata/subwayLineVisuals';
 import { normalizeLineKey } from '../core/metadata/stationTransferMetadata';
@@ -19,7 +20,7 @@ function RideChips({ route }: { route: ScoredRoute }) {
   );
 }
 
-function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRoute; onPick: () => void }) {
+function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRoute }) {
   const { route } = props;
   const title =
     props.kind === 'comfort' ? '🟢 편하게 걷기' : props.kind === 'fast' ? '🔵 빨리 가기' : '⭐ 가장 편하고 빠른 추천 길';
@@ -37,11 +38,15 @@ function RouteCard(props: { kind: 'comfort' | 'fast' | 'single'; route: ScoredRo
         <p className="warn">⚠ 오래 걷는 환승역: {route.heavyTransfers.join(', ')}</p>
       )}
       {props.kind !== 'comfort' && route.tightTransfer && <p className="warn">⚠ 갈아탈 시간이 촉박해요 (2분 이하)</p>}
-      <button className="btn btn--primary" onClick={props.onPick}>이 길로 안내 시작</button>
     </section>
   );
 }
 
+/**
+ * 길 고르기: 한 번에 한 길만 보여 주고 버튼은 2개.
+ * 길이 둘이면 [이 길로 안내 시작] [다른 길 보기], 하나뿐이면 [이 길로 안내 시작] [처음으로].
+ * (폰의 뒤로 버튼으로도 처음으로 돌아가요)
+ */
 export function RouteChoiceScreen(props: {
   destName: string;
   routes: ClassifiedRoutes;
@@ -49,23 +54,30 @@ export function RouteChoiceScreen(props: {
   onBack: () => void;
 }) {
   const { routes } = props;
+  const [index, setIndex] = useState(0);
+  const list: Array<{ kind: 'comfort' | 'fast' | 'single'; route: ScoredRoute }> =
+    routes.kind === 'SINGLE'
+      ? [{ kind: 'single', route: routes.best }]
+      : [
+          { kind: 'comfort', route: routes.comfort },
+          { kind: 'fast', route: routes.fast },
+        ];
+  const cur = list[index % list.length];
   return (
     <main className="screen">
       <header className="screen__header">
         <h1>{props.destName}</h1>
-        <p className="muted">가는 방법을 골라 주세요</p>
+        <p className="muted">{list.length > 1 ? `가는 방법 ${(index % list.length) + 1} / ${list.length}` : '가는 방법'}</p>
       </header>
-      <div className="route-grid">
-        {routes.kind === 'SINGLE' ? (
-          <RouteCard kind="single" route={routes.best} onPick={() => props.onPick(routes.best)} />
+      <RouteCard kind={cur.kind} route={cur.route} />
+      <div className="stack">
+        <button className="btn btn--primary" onClick={() => props.onPick(cur.route)}>이 길로 안내 시작</button>
+        {list.length > 1 ? (
+          <button className="btn btn--secondary" onClick={() => setIndex((i) => (i + 1) % list.length)}>다른 길 보기</button>
         ) : (
-          <>
-            <RouteCard kind="comfort" route={routes.comfort} onPick={() => props.onPick(routes.comfort)} />
-            <RouteCard kind="fast" route={routes.fast} onPick={() => props.onPick(routes.fast)} />
-          </>
+          <button className="btn btn--secondary" onClick={props.onBack}>처음으로</button>
         )}
       </div>
-      <button className="btn btn--secondary" onClick={props.onBack}>처음으로</button>
     </main>
   );
 }

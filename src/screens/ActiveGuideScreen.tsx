@@ -14,34 +14,13 @@ import {
   type SpeechBinding,
 } from '../components/GuidanceCards';
 
-function StopProgress({ leg, t }: { leg: RideLeg; t: TransitState }) {
-  const pos = Math.max(t.anchorIndex, t.estimatedIndex);
-  return (
-    <ol className="stops" aria-label="정차 목록">
-      {leg.stations.map((name, i) => (
-        <li
-          key={`${name}-${i}`}
-          className={[
-            'stops__item',
-            i < pos ? 'is-past' : '',
-            i === pos ? 'is-current' : '',
-            i === leg.stations.length - 1 ? 'is-target' : '',
-          ].join(' ')}
-        >
-          {name}
-          {i === leg.stations.length - 1 && ' (내림)'}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function RideView(props: {
   leg: RideLeg;
   t: TransitState;
   onBoarded: () => void;
   onAlighted: () => void;
   onReroute: () => void;
+  onHelp: () => void;
   speak: (text: string) => void;
 }) {
   const { leg, t } = props;
@@ -56,24 +35,28 @@ function RideView(props: {
           <span className="countdown__label">정거장 남음</span>
         </div>
       )}
-      <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
+      {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 줍니다 */}
       {t.phase === 'WAITING_BOARDING' ? (
-        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
-      ) : t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
-        <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
+        <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} onHelp={props.onHelp} speak={props.speak} />
       ) : (
-        <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
-      )}
-      {t.phase !== 'WAITING_BOARDING' && (
-        <details className="stops-fold">
-          <summary>정차하는 곳 모두 보기</summary>
-          <StopProgress leg={leg} t={t} />
-        </details>
+        <>
+          <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
+          {t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
+            <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
+          ) : (
+            <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
+          )}
+          <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
+        </>
       )}
     </div>
   );
 }
 
+/**
+ * 길 안내 화면. 버튼은 늘 2개 이하: [지금 할 일] + [도움이 필요해요].
+ * 안내를 그만두려면 폰의 뒤로 버튼을 눌러요 (확인창이 떠요).
+ */
 export function ActiveGuideScreen(props: {
   session: MultiLegState;
   binding: SpeechBinding;
@@ -82,7 +65,8 @@ export function ActiveGuideScreen(props: {
   onWalkDone: () => void;
   onReroute: () => void;
   onFinish: () => void;
-  /** 도보 구간에서 나침반 열기 */
+  onHelp: () => void;
+  /** 걷는 구간에서 나침반 열기 */
   onCompass?: (target: { name: string; lat: number; lng: number }) => void;
 }) {
   const { session, binding } = props;
@@ -104,6 +88,7 @@ export function ActiveGuideScreen(props: {
         onBoarded={props.onBoarded}
         onAlighted={props.onAlighted}
         onReroute={props.onReroute}
+        onHelp={props.onHelp}
         speak={binding.speak}
       />
     );
@@ -111,14 +96,16 @@ export function ActiveGuideScreen(props: {
     const Card = leg.walkKind === 'TRANSFER' ? TransferGuidanceCard : leg.walkKind === 'EXIT' ? ExitGuidanceCard : AccessWalkCard;
     const target = leg.target;
     body = (
-      <>
-        <Card key={leg.id} leg={leg} onDone={props.onWalkDone} {...binding} />
-        {target && props.onCompass && (
-          <button className="btn btn--secondary" onClick={() => props.onCompass!(target)}>
-            🧭 나침반으로 방향 보기
-          </button>
-        )}
-      </>
+      <div className="stack">
+        <Card
+          key={leg.id}
+          leg={leg}
+          onDone={props.onWalkDone}
+          onCompass={target && props.onCompass ? () => props.onCompass!(target) : undefined}
+          {...binding}
+        />
+        <button className="btn btn--sos" onClick={props.onHelp}>도움이 필요해요</button>
+      </div>
     );
   }
 
@@ -128,16 +115,6 @@ export function ActiveGuideScreen(props: {
         <p className="muted">{session.destName} 가는 길</p>
       </header>
       {body}
-      {!session.finished && (
-        <button
-          className="btn btn--ghost"
-          onClick={() => {
-            if (window.confirm('길 안내를 그만할까요?')) props.onFinish();
-          }}
-        >
-          안내 그만하기
-        </button>
-      )}
     </main>
   );
 }

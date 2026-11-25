@@ -18,6 +18,11 @@ export function SettingsScreen(props: {
   onSavePhone: (phone: string) => void;
   testMode: boolean;
   onToggleTestMode: (on: boolean) => void;
+  /** 어르신만: 홈에서 뺀 기능을 여기서 쓸 수 있게 */
+  onShareLocation?: () => void;
+  locationNote?: string | null;
+  hasFamilyGuide?: boolean;
+  onOpenFamilyGuide?: () => void;
   /** 샘플 길만 되는 상태일 때 보여 줄 안내 */
   demoNote?: string | null;
   onChangeRole: () => void;
@@ -44,6 +49,17 @@ export function SettingsScreen(props: {
       <header className="screen__header">
         <h1>설정</h1>
       </header>
+
+      {elder && props.onShareLocation && (
+        <section className="settings-block">
+          <h2 className="settings-block__title">가족에게</h2>
+          <button className="btn btn--secondary" onClick={props.onShareLocation}>내 위치 가족에게 보내기</button>
+          {props.locationNote && <p className="hint" role="status">{props.locationNote}</p>}
+          {props.hasFamilyGuide && props.onOpenFamilyGuide && (
+            <button className="btn btn--secondary" onClick={props.onOpenFamilyGuide}>가족이 보낸 길 다시 보기</button>
+          )}
+        </section>
+      )}
 
       {connection}
 

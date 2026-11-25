@@ -22,21 +22,32 @@ export function rideLabel(leg: RideLeg): string {
   return leg.type === 'BUS_LEG' ? `${leg.busNo ?? ''}번 버스` : leg.lineKey;
 }
 
-/** 공통 카드 본문 */
+/**
+ * 공통 카드 본문. 버튼이 아니라 카드를 누르면 다시 읽어 줍니다 (화면의 버튼 수를 줄이기 위해).
+ */
 export function GuidanceBody({ vm, onReplay }: { vm: GuidanceViewModel; onReplay?: () => void }) {
+  const press = onReplay
+    ? {
+        onClick: onReplay,
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onReplay();
+          }
+        },
+        'aria-label': `${vm.title}. 누르면 다시 읽어 줘요`,
+      }
+    : {};
   return (
-    <section className={`card card--${vm.tone}`} aria-live="polite">
+    <section className={`card card--${vm.tone} ${onReplay ? 'card--tap' : ''}`} aria-live="polite" {...press}>
       <h1 className="card__title">{vm.title}</h1>
       <ul className="card__lines">
         {vm.lines.map((l, i) => (
           <li key={i}>{l}</li>
         ))}
       </ul>
-      {onReplay && (
-        <button className="btn btn--ghost" onClick={onReplay}>
-          🔊 다시 듣기
-        </button>
-      )}
+      {onReplay && <p className="card__hint">🔊 글자를 누르면 다시 읽어요</p>}
     </section>
   );
 }
@@ -44,10 +55,21 @@ export function GuidanceBody({ vm, onReplay }: { vm: GuidanceViewModel; onReplay
 interface WalkCardProps extends SpeechBinding {
   leg: WalkLeg;
   onDone: () => void;
+  /** 가는 곳 좌표가 있으면: 큰 버튼이 [나침반으로 가기]가 되고, 도착은 나침반 화면에서 눌러요 */
+  onCompass?: () => void;
+}
+
+/** 걷는 구간의 큰 버튼 하나: 나침반으로 가기(있으면) 또는 도착 확인 */
+function WalkMainButton(props: { onDone: () => void; onCompass?: () => void; doneLabel: string }) {
+  return props.onCompass ? (
+    <button className="btn btn--primary" onClick={props.onCompass}>🧭 나침반으로 가기</button>
+  ) : (
+    <button className="btn btn--primary" onClick={props.onDone}>{props.doneLabel}</button>
+  );
 }
 
 /** 환승 도보 카드: 다음 노선 색 배너 + 승강기 동선. 진입 시 스스로 1회 읽음 */
-export function TransferGuidanceCard({ leg, onDone, speak, spoken }: WalkCardProps) {
+export function TransferGuidanceCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
@@ -57,15 +79,13 @@ export function TransferGuidanceCard({ leg, onDone, speak, spoken }: WalkCardPro
       {leg.railGuide?.quickDoor && (
         <p className="hint">빠른 환승 문: <strong>{leg.railGuide.quickDoor}</strong></p>
       )}
-      <button className="btn btn--primary" onClick={onDone}>
-        다 왔어요 (타는 곳 도착)
-      </button>
+      <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요 (타는 곳 도착)" />
     </div>
   );
 }
 
 /** 출구 안내 카드 (마지막 하차 → 목적지) */
-export function ExitGuidanceCard({ leg, onDone, speak, spoken }: WalkCardProps) {
+export function ExitGuidanceCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
@@ -77,24 +97,20 @@ export function ExitGuidanceCard({ leg, onDone, speak, spoken }: WalkCardProps) 
         </div>
       )}
       <GuidanceBody vm={vm} onReplay={replay} />
-      <button className="btn btn--primary" onClick={onDone}>
-        목적지에 도착했어요
-      </button>
+      <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="목적지에 도착했어요" />
     </div>
   );
 }
 
 /** 출발지 → 첫 탑승 지점 도보 */
-export function AccessWalkCard({ leg, onDone, speak, spoken }: WalkCardProps) {
+export function AccessWalkCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
       {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={`${rideLabel(leg.nextRide)} 타러 가요`} />}
       <GuidanceBody vm={vm} onReplay={replay} />
-      <button className="btn btn--primary" onClick={onDone}>
-        타는 곳에 왔어요
-      </button>
+      <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="타는 곳에 왔어요" />
     </div>
   );
 }
