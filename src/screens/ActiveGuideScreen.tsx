@@ -31,7 +31,7 @@ function RideView(props: {
       {t.phase === 'WAITING_BOARDING' ? (
         <>
           <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
-          <RouteStrip leg={leg} />
+          <RouteStrip leg={leg} compact />
         </>
       ) : (
         <>

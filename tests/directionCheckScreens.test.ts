@@ -7,6 +7,8 @@ import type { RideLeg, WalkLeg } from '../src/core/stateMachine/routeLegBuilder'
 import { BUS_VISUAL } from '../src/core/metadata/subwayLineVisuals';
 
 const noop = () => {};
+/** 화살표 글자: 승강장에서 실제 열차 방향과 어긋날 수 있어 화면에 쓰지 않는다 */
+const NO_ARROW = /[➡⬅→←▶◀⇒⇐]/;
 const binding = { speak: noop, spoken: { has: () => false, add: noop } };
 
 const subway: RideLeg = {
@@ -60,9 +62,11 @@ describe('타기 전 확인 화면', () => {
   const render = (leg: RideLeg) =>
     renderToStaticMarkup(createElement(BoardingDirectionCheck, { leg, onBoarded: noop, speak: noop }));
 
-  it('전철 승강장 2차: 현재역 ➡ 다음 역 방향, 버튼 2개', () => {
+  it('전철 승강장 2차: 다음 역 쪽 열차가 맞나요? (화살표 없음), 버튼 2개', () => {
     const html = render(subway);
-    expect(html).toContain('&#x27;동대문역&#x27; ➡ &#x27;혜화역&#x27; 방향이 맞나요?');
+    expect(html).toContain('&#x27;혜화역&#x27; 쪽으로 가는 열차가 맞나요?');
+    expect(html).toContain('안내판에서 &#x27;혜화&#x27; 글자를 찾으세요');
+    expect(html).not.toMatch(NO_ARROW);
     expect((html.match(/<button/g) ?? []).length).toBe(2);
   });
 
@@ -76,7 +80,7 @@ describe('타기 전 확인 화면', () => {
   });
 });
 
-describe('큰 노선 띠 (화면 아래, 노선 이름 + 탑승 ➡ 다음 ➡ 내리는 곳)', () => {
+describe('큰 노선 띠 (화면 아래, 노선 이름 + 타는 곳 · 다음 · 내리는 곳, 화살표 없음)', () => {
   const accessWalk = (nextRide: RideLeg): WalkLeg => ({
     id: 'leg-0',
     type: 'TRANSFER_WALK_LEG',
@@ -90,21 +94,26 @@ describe('큰 노선 띠 (화면 아래, 노선 이름 + 탑승 ➡ 다음 ➡ �
   const threeStops: RideLeg = { ...subway, boardName: '청량리', alightName: '신설동', nextStation: '회기', stations: ['청량리', '회기', '외대앞', '신이문', '신설동'] };
   const bus: RideLeg = { ...subway, type: 'BUS_LEG', busNo: '153', lineKey: '버스', boardName: '청량리역', nextStation: '제기동', alightName: '서울대병원', stations: ['청량리역', '제기동', '서울대병원'] };
 
-  it('출발 도보: 전철이면 "4호선"과 탑승역 ➡ 다음 역 ➡ 내리는 역이 띠에 큼직하게', () => {
+  it('출발 도보: 전철이면 "4호선" 아래 타는 역 · 다음 역 · 내리는 역이 한 줄씩', () => {
     const html = renderAccess(accessWalk(threeStops));
     expect(html).toContain('route-strip__line">4호선<');
-    for (const n of ['청량리', '회기', '신설동']) expect(html).toContain(`route-strip__stop">${n}<`);
-    expect((html.match(/route-strip__arrow/g) ?? []).length).toBe(2);
+    for (const [label, n] of [['타는 역', '청량리'], ['다음 역', '회기'], ['내리는 역', '신설동']]) {
+      expect(html).toContain(`route-strip__label">${label}<`);
+      expect(html).toContain(`route-strip__stop">${n}<`);
+    }
+    expect(html).not.toMatch(NO_ARROW);
   });
-  it('버스면 "153번" 뒤에 현재 정류장 ➡ 다음 정류장 ➡ 내리는 정류장', () => {
+  it('버스면 "153번" 아래 타는 곳 · 다음 · 내리는 곳', () => {
     const html = renderAccess(accessWalk(bus));
     expect(html).toContain('route-strip__line">153번<');
     for (const n of ['청량리역', '제기동', '서울대병원']) expect(html).toContain(`route-strip__stop">${n}<`);
+    expect(html).not.toMatch(NO_ARROW);
   });
-  it('띠는 버튼이 아니라서 버튼 수는 그대로 (환승 1차 확인 = 2개)', () => {
+  it('띠는 버튼이 아니라서 버튼 수는 그대로 (환승 1차 확인 = 2개), 화살표도 없다', () => {
     const html = renderTransfer(transferWalk(threeStops));
     expect(html).toContain('route-strip__stops');
     expect((html.match(/<button/g) ?? []).length).toBe(2);
+    expect(html).not.toMatch(NO_ARROW);
   });
   it('걷는 화면 위쪽의 가는 파란 띠는 없어졌다', () => {
     expect(renderAccess(accessWalk(threeStops))).not.toContain('line-banner');

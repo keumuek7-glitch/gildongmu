@@ -1,6 +1,6 @@
 /**
  * 역방향 탑승 예방.
- *  1) 전철: 환승 구간에서 "○○방면으로 걸어가고 있나요?"(1차), 승강장에서 "○○역 ➡ ○○역 방향이 맞나요?"(2차)를 묻고,
+ *  1) 전철: 환승 구간에서 "○○방면으로 걸어가고 있나요?"(1차), 승강장에서 "○○역 쪽으로 가는 열차가 맞나요?"(2차)를 묻고,
  *     "아니오·잘 몰라요"면 왔던 길로 돌아가 ○○방면으로 가도록 안내
  *  2) 버스: 다음 정류장을 묻지 않고, 타기 전에 기사님께 "○○ 방향이 맞는지" 물어보도록 안내
  *  (경로 데이터에 있는 이름만 씀 — 없는 이름은 지어내지 않음)
@@ -12,6 +12,8 @@ import type { RideLeg } from '../stateMachine/routeLegBuilder';
 export interface BoardingCheck {
   /** 큰 글씨 한 문장 (질문 또는 지시) */
   question: string;
+  /** 질문 아래 작은 글씨 한 줄 (있을 때만). 화살표가 아니라 이름으로 확인하라는 안내 */
+  hint?: string;
   /** 확인할 방향 이름 (예: "서울역 방면", "종로5가 방향") */
   lookFor: string;
   /** [맞아요] 쪽 버튼 글자 */
@@ -49,6 +51,17 @@ export function stationLabel(name: string): string {
   return n.endsWith('역') ? n : `${n}역`;
 }
 
+/** 화살표 대신 이름으로 확인하라는 한 줄 (화살표 방향은 서 있는 자리마다 달라서 믿을 수 없어요) */
+function nameHint(name: string): string {
+  return `화살표는 서 있는 자리마다 방향이 달라요. 안내판에서 ${q(name)} 글자를 찾으세요`;
+}
+
+/** '제기동역' → '제기동' (안내판 글자와 맞춰 보기 쉽게 '역'과 괄호 설명을 뗌) */
+function stationLabelShort(name: string): string {
+  const n = name.trim().replace(/\s*\([^)]*\)$/, '');
+  return n.length > 1 && n.endsWith('역') ? n.slice(0, -1) : n;
+}
+
 /** 전철 방향 이름: 방면 정보가 있으면 "○○ 방면", 없으면 내릴 곳 기준 "○○ 방향" */
 function subwayDirection(leg: RideLeg): string {
   return leg.way ? `${leg.way} 방면` : `${leg.alightName} 방향`;
@@ -82,7 +95,9 @@ export function transferCheckFor(nextRide: RideLeg): BoardingCheck {
 
 /**
  * 타기 전 확인.
- *  - 전철(2차, 승강장): "○○역 ➡ ○○역 방향이 맞나요?" (탑승역 ➡ 다음 역). 다음 역을 모르면 방면·방향 이름으로 묻습니다.
+ *  - 전철(2차, 승강장): "○○역 쪽으로 가는 열차가 맞나요?" (다음 역 이름). 다음 역을 모르면 방면·방향 이름으로 묻습니다.
+ *    ※ 화살표(➡ ⬅)는 쓰지 않습니다. 승강장에서 열차가 들어오는 쪽(왼쪽·오른쪽)은 서 있는 자리마다 달라서
+ *      폰의 화살표와 실제 방향이 어긋나기 때문이에요. 대신 안내판의 '이름'을 찾아 맞춰 보게 합니다.
  *  - 버스: 다음 정류장을 묻지 않고, 기사님께 "○○ 방향이 맞는지" 물어보라고 안내합니다.
  */
 export function boardingCheckFor(leg: RideLeg): BoardingCheck {
@@ -92,8 +107,9 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
     const next = leg.nextStation && leg.nextStation !== leg.boardName ? leg.nextStation : undefined;
     return {
       question: next
-        ? `${q(stationLabel(leg.boardName))} ➡ ${q(stationLabel(next))} 방향이 맞나요?`
+        ? `${q(stationLabel(next))} 쪽으로 가는 열차가 맞나요?`
         : `${josa(q(dir), '이', '가')} 맞나요?`,
+      hint: nameHint(next ? stationLabelShort(next) : dir),
       lookFor: dir,
       yesLabel: '네, 맞아요',
       noLabel: '아니오 · 잘 몰라요',

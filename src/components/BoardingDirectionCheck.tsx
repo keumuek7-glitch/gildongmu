@@ -4,6 +4,9 @@ import { boardingCheckFor, type BoardingCheck } from '../core/safety/directionCh
 
 type Step = 'ASK' | 'OK' | 'WRONG';
 
+/** 질문을 다시 읽어 줄 때: 질문 + (있으면) 이름으로 확인하라는 한 줄 */
+const askSpeech = (c: BoardingCheck) => (c.hint ? `${c.question}. ${c.hint}` : c.question);
+
 /**
  * 방향 확인 한 단계 (역방향 예방). 화면의 버튼은 늘 2개 이하입니다.
  *  - [맞아요] 쪽을 눌러야만 다음으로 갑니다.
@@ -27,7 +30,7 @@ export function DirectionCheck(props: {
         <div className="card card--warning" role="alert">
           <p className="card__title">⛔ {c.wrongTitle}</p>
         </div>
-        <button className="btn btn--primary" onClick={() => { setStep('ASK'); speak(c.question); }}>다시 확인하기</button>
+        <button className="btn btn--primary" onClick={() => { setStep('ASK'); speak(askSpeech(c)); }}>다시 확인하기</button>
       </div>
     );
   }
@@ -44,8 +47,9 @@ export function DirectionCheck(props: {
 
   return (
     <div className="stack">
-      <div className="card card--alert direction-check">
+      <div className={`card card--alert direction-check${c.question.length > 30 ? ' direction-check--long' : ''}`}>
         <p className="card__title">{c.question}</p>
+        {c.hint && <p className="direction-check__hint">{c.hint}</p>}
       </div>
       <button
         className="btn btn--primary"

@@ -6,7 +6,7 @@ import { useCardAutoSpeech } from '../hooks/useCardAutoSpeech';
 import type { LineVisual } from '../core/metadata/subwayLineVisuals';
 import { transferCheckFor } from '../core/safety/directionCheck';
 import { DirectionCheck } from './BoardingDirectionCheck';
-import { routeStripNames, stripLineLabel } from '../core/stateMachine/routeStrip';
+import { routeStripStops, stripLineLabel } from '../core/stateMachine/routeStrip';
 
 export interface SpeechBinding {
   speak: (text: string) => void;
@@ -27,27 +27,29 @@ export function LineBanner({ visual, label }: { visual: LineVisual; label?: stri
 }
 
 /**
- * 큰 노선 띠: 화면 아래쪽에 노선 색으로 크게 "1호선  청량리 ➡ 회기 ➡ 내리는 역" (버스는 "153번 …").
+ * 큰 노선 띠: 화면 아래쪽에 노선 색으로 크게 노선 이름, 그 아래 [타는 곳 / 다음 / 내리는 곳]을 위에서 아래로.
+ * 가로 화살표(➡)는 쓰지 않아요. 열차가 들어오는 쪽이 서 있는 자리마다 달라서 폰의 화살표와 어긋날 수 있어서예요.
  * 버튼이 아니라 글자만 있는 띠라서 화면의 버튼 수에는 들어가지 않아요.
  */
-export function RouteStrip({ leg }: { leg: RideLeg }) {
+/** compact: 질문·버튼이 길게 나오는 확인 화면에서 한 화면에 더 들어오도록 글자를 조금 줄인 모양 */
+export function RouteStrip({ leg, compact }: { leg: RideLeg; compact?: boolean }) {
   const line = stripLineLabel(leg);
-  const stops = routeStripNames(leg);
+  const stops = routeStripStops(leg);
   return (
     <section
-      className="route-strip"
+      className={`route-strip${compact ? ' route-strip--compact' : ''}`}
       style={{ background: leg.visual.bgHex, color: leg.visual.textHex }}
-      aria-label={`${line}, ${stops.join(' ➡ ')}`}
+      aria-label={`${line}: ${stops.map((s) => `${s.label} ${s.name}`).join(', ')}`}
     >
       <p className="route-strip__line">{line}</p>
-      <p className="route-strip__stops">
-        {stops.map((name, i) => (
-          <Fragment key={`${i}:${name}`}>
-            {i > 0 && <span className="route-strip__arrow" aria-hidden="true">➡</span>}
-            <span className="route-strip__stop">{name}</span>
+      <dl className="route-strip__stops">
+        {stops.map((s) => (
+          <Fragment key={s.role}>
+            <dt className="route-strip__label">{s.label}</dt>
+            <dd className="route-strip__stop">{s.name}</dd>
           </Fragment>
         ))}
-      </p>
+      </dl>
     </section>
   );
 }
@@ -117,7 +119,7 @@ function TransferDirectionAsk(props: SpeechBinding & { next: RideLeg; legId: str
   return (
     <div className="stack stack--fill">
       <DirectionCheck check={check} speak={props.speak} onConfirm={props.onYes} />
-      <RouteStrip leg={props.next} />
+      <RouteStrip leg={props.next} compact />
     </div>
   );
 }
