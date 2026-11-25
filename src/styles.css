@@ -108,6 +108,11 @@ body { margin: 0; background: var(--bg); }
 .status { font-size: 28px; font-weight: 700; }
 .status--error { color: #a00000; }
 
+/* 위치·방향이 막혔을 때: 어르신용 한 문장 + 접힌 가족용 고치는 방법 */
+.perm-help .status { margin: 8px 0 0; }
+.perm-help__family { font-size: 18px; margin-top: 8px; }
+.perm-help__family ol { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; }
+
 .settings, .dev-panel { border: 2px dashed #777; border-radius: var(--radius); padding: 10px 14px; margin-top: 16px; }
 .settings summary, .dev-panel summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
 .field { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }

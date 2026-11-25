@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { compassGuide, fmtDist, nsewPositions, type LatLng } from '../core/navigation/compass';
 import { useCompassSensors } from '../hooks/useCompassSensors';
 import { vibrate } from '../services/speechAdapter';
+import { isInsecurePage, PermissionHelpBox } from './PermissionHelpBox';
 
 export interface CompassTarget extends LatLng {
   name: string;
@@ -70,13 +71,8 @@ export function CompassView(props: {
       </svg>
       <p className="compass__msg" aria-live="polite">{g.text}</p>
       {g.distanceM != null && <p className="compass__dist">{fmtDist(g.distanceM)}</p>}
-      {s.gpsDenied && <p className="status status--error">위치 권한을 켜 주세요</p>}
-      {s.permDenied && (
-        <p className="status status--error">방향 센서가 막혀 있어요. 브라우저 설정에서 '모션 센서'를 허용해 주세요</p>
-      )}
-      {s.noHeading && !s.permDenied && (
-        <p className="status status--error">폰이 방향을 알려 주지 않아요. 브라우저 설정에서 '모션 센서'를 허용해 주세요</p>
-      )}
+      {/* 막힌 게 있으면 어르신에게는 한 문장, 고치는 방법은 접힌 가족용 칸에 */}
+      <PermissionHelpBox gps={s.gpsDenied} sensor={s.permDenied || s.noHeading} insecure={isInsecurePage()} />
       {/* 큰 버튼은 늘 2개 이하: 센서 허락이 필요하면 [나침반 켜기]+[뒤로], 아니면 [도착했어요]+[로드뷰 또는 뒤로(로드뷰가 없을 때)] */}
       <div className="compass__actions">
         {s.needPermit ? (
