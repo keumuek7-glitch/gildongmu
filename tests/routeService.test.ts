@@ -197,3 +197,57 @@ describe('ODsay 직접 호출', () => {
     expect(e2.message).toContain('너무 가까워요');
   });
 });
+
+describe('앱이 직접 계산하는 길(subway-local)을 먼저 쓰기', () => {
+  function setupLocal(local: (c: ReturnType<typeof at>) => Promise<typeof routes | null>) {
+    const store = memStore();
+    const fetch = vi.fn(async () => routes);
+    const provider: RouteProvider = { id: 'odsay-browser', metered: true, fetch };
+    const cache = new RouteCache(store);
+    const limit = new DailyLimit(store);
+    const service = createRouteService({ getProvider: () => provider, cache, limit, local });
+    return { service, fetch, cache, limit };
+  }
+
+  it('앱이 찾은 길이 있으면 그 길을 쓰고, 바깥 서비스·저장·하루 횟수는 건드리지 않는다', async () => {
+    const own = routes.slice(0, 1);
+    const { service, fetch, cache, limit } = setupLocal(async () => own);
+    const r = await service.getRoutes(at(0));
+    expect(r.source).toBe('subway-local');
+    expect(r.routes).toEqual(own);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(cache.count()).toBe(0);
+    expect(cache.stats()).toEqual({ hit: 0, miss: 0 });
+    expect(limit.used()).toBe(0);
+  });
+
+  it('앱이 못 찾으면(null) 지금까지처럼 바깥 길 찾기로 넘어가고 횟수를 센다', async () => {
+    const { service, fetch, limit } = setupLocal(async () => null);
+    const r = await service.getRoutes(at(0));
+    expect(r.source).toBe('odsay-browser');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(limit.used()).toBe(1);
+  });
+
+  it('앱 안의 계산이 오류를 내도 길 찾기가 멈추지 않고 바깥 길 찾기로 넘어간다', async () => {
+    const { service, fetch } = setupLocal(async () => {
+      throw new Error('지도 불러오기 실패');
+    });
+    const r = await service.getRoutes(at(0));
+    expect(r.source).toBe('odsay-browser');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('하루 상한을 다 써도 앱이 계산하는 길은 계속 나온다', async () => {
+    const store = memStore();
+    const limit = new DailyLimit(store, undefined, 0);
+    const provider: RouteProvider = { id: 'odsay-browser', metered: true, fetch: vi.fn(async () => routes) };
+    const service = createRouteService({
+      getProvider: () => provider,
+      cache: new RouteCache(store),
+      limit,
+      local: async () => routes.slice(0, 1),
+    });
+    await expect(service.getRoutes(at(0))).resolves.toMatchObject({ source: 'subway-local' });
+  });
+});

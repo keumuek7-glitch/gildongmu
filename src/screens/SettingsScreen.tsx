@@ -40,12 +40,13 @@ export function SettingsScreen(props: {
 
   const provider = pickProvider({ odsayKey: getOdsayKey(), staticDemo: STATIC_DEMO });
   const cacheStats = routeCache.stats();
+  const ownNote = '서울 지하철만 타는 길은 앱이 직접 계산해요.';
   const routeModeNote =
     provider.id === 'sample'
-      ? '지금은 시연용 샘플 길(청량리역에서 서울대병원까지)만 나와요. 키를 넣으면 진짜 길을 찾아요.'
+      ? `${ownNote} 그 밖의 길은 시연용 샘플 길(청량리역에서 서울대병원까지)만 나와요. 키를 넣으면 진짜 길을 찾아요.`
       : provider.id === 'odsay-browser'
-        ? '이 폰에서 바로 길을 찾고 있어요.'
-        : '길 찾기 서버(프록시)로 길을 찾고 있어요.';
+        ? `${ownNote} 그 밖의 길은 이 폰에서 바로 찾아요.`
+        : `${ownNote} 그 밖의 길은 길 찾기 서버(프록시)로 찾아요.`;
 
   const connection: ReactNode = (
     <PairingPanel
@@ -143,7 +144,8 @@ export function SettingsScreen(props: {
         {saved === 'odsay' && (
           <p className="hint" role="status">{getOdsayKey() ? '길 찾기 키를 저장했어요' : '길 찾기 키를 지웠어요'}</p>
         )}
-        <p className="hint">오늘 남은 길 찾기: {dailyLimit.remaining()}번 (하루 {dailyLimit.limit}번까지)</p>
+        <p className="hint">오늘 남은 길 찾기: {dailyLimit.remaining()}번 (하루 {dailyLimit.limit}번까지). 앱이 직접 계산한 지하철 길은 세지 않아요.</p>
+        <p className="hint">지하철 시간·좌표 출처: 서울교통공사 (공공누리 1유형)</p>
         <p className="hint">
           저장해 둔 길: {routeCache.count()}곳 · 저장에서 꺼낸 횟수 {cacheStats.hit} 대 새로 찾은 횟수 {cacheStats.miss}
         </p>
