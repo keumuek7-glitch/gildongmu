@@ -31,6 +31,13 @@ export class TransferGuideRepository {
     return matches.find((g) => g.elevatorExit) ?? matches[0];
   }
 
+  /** 같은 역·노선의 출구 안내 전부 (엘리베이터 출구, 계단·에스컬레이터 출구 등) */
+  findExitGuides(station: string | undefined, line?: string): StationExitGuide[] {
+    const st = normalizeStationName(station);
+    const ln = normalizeLineKey(line);
+    return this.exits.filter((g) => g.stationName === st && (!ln || g.line === ln));
+  }
+
   /** 해당 역에서 승강기(엘리베이터 또는 에스컬레이터) 동선이 확인되는지 */
   hasLiftAt(station: string | undefined): boolean {
     const st = normalizeStationName(station);
