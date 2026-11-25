@@ -1,0 +1,113 @@
+# 서울 지하철 자료(역 사이 시간, 환승 시간)에 새 파일이 있는지 한 달에 한 번 보고, 있으면 지도를 다시 만들어 검사한 뒤
+# main 이 아닌 새 브랜치로 올려 Draft PR 을 엽니다. main 에 직접 올리거나 스스로 합치지 않습니다(합치는 것은 사람이 승인).
+# 바뀐 것이 없으면 아무것도 하지 않습니다. 받기·지도 만들기·검사가 실패하면 이유를 적은 이슈를 엽니다.
+#
+# 처음 한 번 확인할 것: 저장소 Settings → Actions → General → Workflow permissions 에서
+#   "Allow GitHub Actions to create and approve pull requests" 가 켜져 있어야 PR 이 열립니다.
+#   꺼져 있어도 새 브랜치는 올라가고, PR 대신 "PR 을 열어 주세요" 이슈가 열립니다.
+# 공개 저장소는 60일 동안 활동이 없으면 예약 실행이 자동으로 꺼질 수 있습니다(Actions 탭에서 다시 켜기).
+name: Update subway data
+
+on:
+  schedule:
+    - cron: '17 3 1 * *' # 매월 1일 한국 시각 12:17
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: update-subway-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: 새 자료가 있으면 받기
+        run: npx tsx scripts/updateSubwayData.ts
+
+      - name: 바뀐 것이 있는지 보기
+        id: diff
+        run: |
+          git status --porcelain
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "바뀐 자료가 없어요."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 지도 다시 만들기 (자료가 서로 어긋나면 여기서 멈춤)
+        if: steps.diff.outputs.changed == 'true'
+        run: npm run build:subway
+
+      - name: 검사 (테스트·타입·Pages 조건 빌드)
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          npm test
+          npm run typecheck
+          VITE_BASE=/gildongmu/ VITE_STATIC_DEMO=true npx vite build
+
+      - name: 새 브랜치로 올리고 Draft PR 열기
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          OPEN=$(gh pr list --state open --json headRefName --jq '[.[].headRefName | select(startswith("data/subway-"))] | first // empty')
+          if [ -n "$OPEN" ]; then
+            echo "아직 합치지 않은 자료 갱신 PR($OPEN)이 있어요. 새로 열지 않아요."
+            exit 0
+          fi
+          BR="data/subway-$(date -u +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BR"
+          git add -A data src/data
+          git commit -m "data: 서울 지하철 자료 갱신 ($(date -u +%Y-%m-%d))"
+          git push origin "$BR"
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            echo "## 서울 지하철 자료가 바뀌어서 지도를 다시 만들었어요"
+            echo
+            echo "서울 열린데이터광장의 서울교통공사 자료(역 사이 시간 OA-12034, 환승 시간 OA-13290)에 새 파일이 있어서 자동으로 받고 \`npm run build:subway\`로 지도를 다시 만들었습니다."
+            echo
+            echo "바뀐 파일:"
+            git diff --name-status origin/main HEAD | sed 's/^/- /'
+            echo
+            echo "자동 검사(\`npm test\`, \`npm run typecheck\`, Pages 조건 빌드)는 모두 통과했습니다. 실행 기록: $RUN_URL"
+            echo
+            echo "### 합치기 전에 확인해 주세요"
+            echo "- 역이 새로 생기거나 이름·호선이 바뀐 경우는 지도 만들기가 멈추므로 이 PR이 열리지 않습니다. 이 PR은 \"자료는 서로 맞는다\"는 뜻일 뿐, 길이 올바른지까지 확인한 것은 아닙니다."
+            echo "- \`src/data/subwayGraph.json\`에서 바뀐 줄을 보고(시간·거리·환승), 눈에 띄게 달라진 곳이 없는지 봐 주세요."
+            echo "- 역 좌표 파일(공공데이터포털)은 자동으로 받지 않습니다. 새 역이 생겼다면 좌표를 직접 갱신해야 합니다."
+            echo "- 합치면 Pages가 자동 배포되어 실제 사용자 앱이 바뀝니다. 승인 없이 합치지 마세요."
+          } > pr_body.md
+          gh pr create --draft --base main --head "$BR" \
+            --title "data: 서울 지하철 자료 갱신 ($(date -u +%Y-%m-%d))" \
+            --body-file pr_body.md \
+          || gh issue create \
+            --title "서울 지하철 자료 갱신 브랜치를 올렸어요 (PR을 열어 주세요)" \
+            --body "새 자료로 지도를 다시 만들어 \`$BR\` 브랜치에 올렸지만, Actions가 PR을 만들 권한이 없어 PR은 열지 못했어요. 저장소 Settings → Actions → General → Workflow permissions 에서 'Allow GitHub Actions to create and approve pull requests'를 켜거나, 이 브랜치로 직접 PR을 열어 주세요. 실행 기록: $RUN_URL"
+
+      - name: 실패하면 이슈 열기
+        if: failure()
+        run: |
+          TITLE="서울 지하철 자료 자동 갱신이 실패했어요"
+          if [ -n "$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')" ]; then
+            echo "같은 이슈가 이미 열려 있어요."
+            exit 0
+          fi
+          gh issue create --title "$TITLE" --body "자료를 받거나 지도를 만들거나 검사하는 중 멈췄어요. 새 역이 생겼거나 서울시 자료의 모양·이름이 바뀐 경우가 많아요. 멈춘 이유는 실행 기록에 적혀 있어요: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"

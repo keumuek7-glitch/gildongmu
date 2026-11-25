@@ -333,9 +333,10 @@ export function formatGraph(g: SubwayGraph): string {
 }
 
 function pick(dir: string, prefix: string): string {
-  const hit = readdirSync(dir).filter((f) => f.startsWith(prefix)).sort().pop();
-  if (!hit) throw new Error(`${dir} 안에 '${prefix}' 로 시작하는 파일이 없어요.`);
-  return readFileSync(path.join(dir, hit), 'utf-8');
+  const hits = readdirSync(dir).filter((f) => f.startsWith(prefix));
+  if (hits.length === 0) throw new Error(`${dir} 안에 '${prefix}' 로 시작하는 파일이 없어요.`);
+  if (hits.length > 1) throw new Error(`'${prefix}' 로 시작하는 파일이 여러 개예요(${hits.join(', ')}). 가장 최근 것 하나만 남겨 주세요.`);
+  return readFileSync(path.join(dir, hits[0]), 'utf-8');
 }
 
 function main(): void {
