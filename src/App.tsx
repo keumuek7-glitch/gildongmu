@@ -23,6 +23,19 @@ import { fetchSeniorRoutes, RouteApiError } from './services/routeApiClient';
 import { createWebSpeechAdapter, vibrate } from './services/speechAdapter';
 import { getCurrentLocation, FALLBACK_LOCATION } from './utils/currentLocationHelper';
 import { loadPersistedSession, usePersistedMultiLegSession } from './hooks/usePersistedMultiLegSession';
+import {
+  buildPairLink,
+  parsePairLink,
+  parseRole,
+  sanitizeTrip,
+  tripDestToRouteDest,
+  type RelayMessage,
+  type Role,
+} from './core/guardian/familyRelay';
+import { FamilyRelayClient, gdStore, type RelayState } from './services/familyRelayClient';
+import { RoleSelectScreen } from './screens/RoleSelectScreen';
+import { FamilyScreen, type ElderLoc } from './screens/FamilyScreen';
+import { PairingPanel } from './components/PairingPanel';
 
 type Screen = 'HOME' | 'CHOICE' | 'GUIDE';
 interface Dest { name: string; x: number; y: number }
@@ -37,7 +50,38 @@ const readPhone = () => {
   try { return localStorage.getItem(PHONE_KEY) ?? ''; } catch { return ''; }
 };
 
+/** 처음 한 번: 연결 링크(?pair=)·?role= 을 읽어 저장하고 주소에서 지웁니다. */
+function readInitialRole(): { role: Role | null; pairedNow: boolean } {
+  const search = window.location.search;
+  const pair = parsePairLink(search);
+  const urlRole = parseRole(new URLSearchParams(search).get('role'));
+  let role = urlRole ?? parseRole(gdStore.get<string | null>('role', null));
+  if (role) gdStore.set('role', role);
+  if (pair) {
+    gdStore.set('room', pair.room);
+    try {
+      const rest = new URLSearchParams(search);
+      rest.delete('pair');
+      const q = rest.toString();
+      history.replaceState(history.state, '', window.location.pathname + (q ? '?' + q : ''));
+    } catch { /* noop */ }
+  }
+  return { role, pairedNow: !!pair };
+}
+
+function relayTripDest(m: RelayMessage | null) {
+  return m ? tripDestToRouteDest(sanitizeTrip(m.data)) : null;
+}
+
 export default function App() {
+  const initial = useMemo(readInitialRole, []);
+  const [role, setRole] = useState<Role | null>(initial.role);
+  const relay = useMemo(() => new FamilyRelayClient(initial.role), [initial]);
+  const [relayState, setRelayState] = useState<RelayState>('off');
+  const [paired, setPaired] = useState(() => relay.isPaired());
+  const [relayDest, setRelayDest] = useState(() => relayTripDest(relay.last('trip')));
+  const [notice, setNotice] = useState<string | null>(initial.pairedNow ? '가족과 연결됐어요' : null);
+  const [elderLoc, setElderLoc] = useState<ElderLoc | null>(() => (relay.last<ElderLoc>('elderLoc')?.data ?? null));
   const [screen, setScreen] = useState<Screen>('HOME');
   const [session, setSession] = useState<MultiLegState | null>(null);
   const sessionRef = useRef<MultiLegState | null>(null);
@@ -54,6 +98,54 @@ export default function App() {
   const simOffsetRef = useRef(0);
 
   const guardianDest = useMemo(() => decodeGuardianLink(window.location.search), []);
+
+  // ── 두 휴대폰 연결 (Firebase 중계) ─────────────────────
+  useEffect(() => {
+    relay.setRole(role);
+    const offState = relay.onState(setRelayState);
+    const offMsg = relay.onMessage((m) => {
+      if (role === 'elder') {
+        if (m.type === 'trip') setRelayDest(relayTripDest(m));
+        else if (m.type === 'tripReset') setRelayDest(null);
+        else if (m.type === 'viewed') setNotice('가족이 내 위치를 봤어요');
+      } else if (role === 'child') {
+        if (m.type === 'elderLoc') {
+          setElderLoc(m.data as ElderLoc);
+          if ((m.data as { shout?: boolean })?.shout) setNotice('어르신이 지금 위치를 보냈어요');
+        } else if (m.type === 'arrived') setNotice('어르신이 도착했어요');
+        else if (m.type === 'alighted') setNotice('어르신이 내렸어요');
+      }
+    });
+    if (role) relay.start();
+    if (role === 'child') relay.send('viewed', {});
+    return () => {
+      offState();
+      offMsg();
+      relay.stop();
+    };
+  }, [relay, role]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(id);
+  }, [notice]);
+
+  const pickRole = useCallback((r: Role | null) => {
+    if (r) gdStore.set('role', r);
+    else gdStore.del('role');
+    setRole(r);
+  }, []);
+
+  const sendMyLocation = useCallback(async () => {
+    const loc = await getCurrentLocation(8000);
+    if (loc.source !== 'GPS') {
+      setNotice('위치를 못 찾았어요. 위치 권한을 켜 주세요');
+      return;
+    }
+    relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
+    setNotice(relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
+  }, [relay]);
   const speech = useMemo(() => createWebSpeechAdapter(), []);
   const now = useCallback(() => Date.now() + simOffsetRef.current, []);
 
@@ -257,6 +349,13 @@ export default function App() {
     [advanceClock, apply, dispatch, ensureBoarded, goHome, now],
   );
 
+  // 도착하면 가족에게 알림
+  const finished = !!session?.finished;
+  const finishedDest = session?.destName;
+  useEffect(() => {
+    if (finished && role === 'elder') relay.send('arrived', { name: finishedDest });
+  }, [finished, finishedDest, relay, role]);
+
   const devInfo = (() => {
     const s = session;
     const leg = s && currentLeg(s);
@@ -264,12 +363,46 @@ export default function App() {
     return `시뮬레이션 시계 +${Math.round(simOffset / 1000)}초 · 상태: ${phase ?? '-'}`;
   })();
 
+  const pairingPanel = role && (
+    <PairingPanel
+      role={role}
+      paired={paired}
+      state={relayState}
+      onMakeLink={
+        role === 'child'
+          ? () => {
+              const room = relay.ensureRoom();
+              setPaired(true);
+              const t = relay.last('trip');
+              if (t) relay.send('trip', t.data);
+              return buildPairLink(window.location.href, room, 'elder');
+            }
+          : undefined
+      }
+      onUnpair={() => {
+        relay.leave();
+        setPaired(false);
+      }}
+      onChangeRole={() => pickRole(role === 'elder' ? 'child' : 'elder')}
+    />
+  );
+
+  if (!role) return <div className="app"><RoleSelectScreen onPick={pickRole} /></div>;
+
+  if (role === 'child') {
+    return (
+      <div className="app">
+        <FamilyScreen elderLoc={elderLoc} news={notice}>{pairingPanel}</FamilyScreen>
+      </div>
+    );
+  }
+
   return (
     <div className={`app ${screen === 'GUIDE' ? 'app--with-safety' : ''}`}>
       {screen === 'HOME' && (
         <HomeScreen
           favorites={FAVORITES}
-          guardianDest={guardianDest}
+          guardianDest={relayDest ?? guardianDest}
           resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
           originLabel={originLabel}
           guardianPhone={guardianPhone}
@@ -292,6 +425,14 @@ export default function App() {
             try { localStorage.setItem(PHONE_KEY, p); } catch { /* noop */ }
           }}
         />
+      )}
+
+      {screen === 'HOME' && (
+        <div className="screen">
+          {notice && <p className="status" role="status">{notice}</p>}
+          <button className="btn btn--secondary" onClick={() => void sendMyLocation()}>내 위치 가족에게 보내기</button>
+          {pairingPanel}
+        </div>
       )}
 
       {screen === 'CHOICE' && routes && (
