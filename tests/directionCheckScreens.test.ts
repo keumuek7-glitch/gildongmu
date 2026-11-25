@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BoardingDirectionCheck } from '../src/components/BoardingDirectionCheck';
-import { TransferGuidanceCard } from '../src/components/GuidanceCards';
+import { AccessWalkCard, TransferGuidanceCard } from '../src/components/GuidanceCards';
 import type { RideLeg, WalkLeg } from '../src/core/stateMachine/routeLegBuilder';
 import { BUS_VISUAL } from '../src/core/metadata/subwayLineVisuals';
 
@@ -73,5 +73,29 @@ describe('타기 전 확인 화면', () => {
     expect(html).not.toContain('다음 정류장');
     expect(html).toContain('기사님이 맞대요');
     expect((html.match(/<button/g) ?? []).length).toBe(2);
+  });
+});
+
+describe('걷는 화면 위 노선 띠에 노선 이름 글자', () => {
+  const accessWalk = (nextRide: RideLeg): WalkLeg => ({
+    id: 'leg-0',
+    type: 'TRANSFER_WALK_LEG',
+    walkKind: 'ACCESS',
+    distanceM: 300,
+    adjustedMin: 5,
+    nextRide,
+  });
+  const renderAccess = (leg: WalkLeg) =>
+    renderToStaticMarkup(createElement(AccessWalkCard, { leg, onDone: noop, ...binding }));
+
+  it('출발 도보: 다음에 탈 전철 노선 이름이 띠에 보인다', () => {
+    expect(renderAccess(accessWalk(subway))).toContain('4호선');
+  });
+  it('출발 도보: 다음에 탈 것이 버스면 "100번 버스"', () => {
+    const bus: RideLeg = { ...subway, type: 'BUS_LEG', busNo: '100', lineKey: '버스' };
+    expect(renderAccess(accessWalk(bus))).toContain('100번 버스');
+  });
+  it('환승 1차 확인 화면에도 노선 이름이 보인다', () => {
+    expect(renderTransfer(transferWalk(subway))).toContain('4호선');
   });
 });

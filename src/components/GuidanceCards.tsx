@@ -76,7 +76,7 @@ function TransferWalkBody({ leg, onDone, onCompass, speak, spoken }: WalkCardPro
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} />}
+      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={rideLabel(leg.nextRide)} />}
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="다 왔어요" />
     </div>
@@ -89,7 +89,7 @@ function TransferDirectionAsk(props: SpeechBinding & { next: RideLeg; legId: str
   useCardAutoSpeech(`${props.legId}:DIRCHECK`, check.question, props.speak, props.spoken);
   return (
     <div className="stack">
-      <LineBanner visual={props.next.visual} />
+      <LineBanner visual={props.next.visual} label={rideLabel(props.next)} />
       <DirectionCheck check={check} speak={props.speak} onConfirm={props.onYes} />
     </div>
   );
@@ -214,7 +214,7 @@ export function AccessWalkCard({ leg, onDone, onCompass, speak, spoken }: WalkCa
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
-      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} />}
+      {leg.nextRide && <LineBanner visual={leg.nextRide.visual} label={rideLabel(leg.nextRide)} />}
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="타는 곳에 왔어요" />
     </div>
