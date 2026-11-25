@@ -3,7 +3,7 @@
 > 병합 진행 중: 기존 길동무(빌드 없는 웹앱)는 `legacy/` 에 그대로 있고, 이 폴더의 새 앱(Vite+React+TS)으로 기능을 옮기는 중입니다.
 > 지금까지 옮긴 것: 역할 선택(어르신/가족), Firebase로 두 휴대폰 연결(`?pair=` 연결 링크, 기존 `gd_` 저장 키 그대로 사용),
 > 가족이 보낸 도착지를 어르신 폰에서 바로 길 찾기, 어르신 위치 보내기·도착 알림. 나침반(도보 구간)·가족이 보낸 로드뷰 안내, 버스 좌표 하차 알림(400m 다음에 내려요 · 60m 지금 내려요, 설정 키 gd_alightM), 역방향 탑승 예방(타기 전 방면·다음 역 확인, 버스 '지나친 것 같아요' 감지: 내릴 곳에서 가장 가까웠던 거리보다 여유 이상 멀어지면 알림. 여유 = 300m + 정류장 순서대로 본 노선의 계획된 멀어짐 최댓값(빙 돌아가는 노선 대비), 정류장 좌표가 없으면 600m), 가족 화면(장소 찾기로 도착지 보내기, 약도, 방향 안내 보내기). 홈 화면 설치(서비스 워커 등록), 카톡 안 브라우저 → 크롬으로 다시 열기, 카톡 공유(연결 링크·길 안내 ?go= 링크, 기존 링크와 호환), 말소리를 못 내면 알림음.
-> 배포: GitHub Pages (`.github/workflows/pages.yml`, main 푸시 때 빌드해서 올림). 처음 한 번 Settings → Pages → Source 를 "GitHub Actions" 로 바꿔야 합니다. 서버가 없으므로 Pages에서는 시연용 샘플 길만 나옵니다(VITE_STATIC_DEMO). 기존 앱은 /gildongmu/legacy/ 에 함께 올라갑니다. 넷리파이는 쓰지 않습니다.
+> 배포: GitHub Pages (`.github/workflows/pages.yml`, main 푸시 때 빌드해서 올림). 처음 한 번 Settings → Pages → Source 를 "GitHub Actions" 로 바꿔야 합니다. 서버가 없으므로 Pages에서는 설정에 ODsay 길 찾기 키를 넣기 전까지 시연용 샘플 길만 나옵니다(VITE_STATIC_DEMO). 기존 앱은 /gildongmu/legacy/ 에 함께 올라갑니다. 넷리파이는 쓰지 않습니다.
 
 
 65세 이상 어르신이 서울·수도권 전철·버스를 **거꾸로 타지 않고, 헤매지 않고** 갈아탈 수 있도록 돕는 웹 앱입니다.
@@ -117,7 +117,7 @@ src/
     guardian/                             SOS 문자, 보호자 목적지 링크
     types.ts
   hooks/                                  카드 자동 발화, 세션 저장/복원
-  services/                               프록시 API 클라이언트, Web Speech 어댑터
+  services/                               길 찾기(routeService: 가져오는 곳 교체·저장·하루 상한), 프록시/ODsay 클라이언트, Web Speech 어댑터
   utils/currentLocationHelper.ts          GPS + 폴백 좌표
   components/ screens/ App.tsx            화면
   data/                                   샘플 ODsay 응답, 변환된 환승·출구 JSON
@@ -149,6 +149,9 @@ npm run convert:facilities -- --transfers scripts/sample-input/rail_transfers.cs
 - **중복 발화 방지**: `spokenKeys`(Set)를 세션 전체가 공유. 환승/출구 카드는 카드가 직접 1회 읽고, 상위 디스패처는 도보 구간에서 말하지 않음
 - **TTS**: Web Speech API, `ko-KR`, rate 0.88. `4-2번 문` → `4 다시 2번 문`, `30m` → `30미터`. 화면이 백그라운드면 알림·진동 후 복귀 시 다시 읽음
 - **세션 저장**: localStorage, TTL 3시간, Set ↔ Array 직렬화
+- **길 찾기 한 군데로 묶기(1단계, C안)**: 앱은 `services/routeService.ts`의 `getRoutes` 하나만 부릅니다. 길을 가져오는 곳(`RouteProvider`: 시연용 샘플 · 프록시 · 폰에서 ODsay 직접)은 갈아 끼울 수 있어, 나중에 서울시 공공자료로 앱이 직접 계산하는 방식(A안)을 provider 하나로 추가하면 됩니다. 설정에 ODsay 키가 있으면 폰에서 바로, 없으면 Pages 빌드는 샘플·개발 환경은 프록시를 씁니다. 키는 그 폰의 `gd_odsayKey`에만 저장되고 가족 연결·공유 링크에는 들어가지 않습니다.
+- **길 저장(캐시)**: 길 후보를 폰에 저장(출발·도착 좌표 소수점 4자리 키, 3일, 최근 20곳). 같은 길은 바깥 서비스를 다시 부르지 않습니다. 설정에서 "저장에서 꺼낸 횟수 대 새로 찾은 횟수"를 볼 수 있어 적중률을 직접 재 볼 수 있습니다.
+- **하루 상한**: 이 폰에서 바깥 서비스를 새로 부르는 횟수를 하루 30번으로 제한(저장에서 꺼낸 것은 세지 않음, 실패한 호출은 센 것으로 둠). 다 쓰면 "오늘은 길 찾기를 모두 썼어요…" 안내가 나옵니다. 30번·3일·20곳은 처음 정한 값이라 실제 한도와 사용량을 본 뒤 조절합니다.
 - **프록시**: 좌표 소수점 4자리 정규화 키로 5분 캐시, 동시 요청 병합, 외부 호출 7초 타임아웃, IP당 분당 30회(초과 시 429 + Retry-After). 클라이언트 타임아웃 8초
 
 ---
@@ -159,6 +162,7 @@ npm run convert:facilities -- --transfers scripts/sample-input/rail_transfers.cs
 
 1. **ODsay 응답 형식**: `result.path[].info.totalTime/payment`, `subPath[].trafficType`(1=지하철, 2=버스, 3=도보), `sectionTime`, `distance`, `stationCount`, `startName/endName`, `way`, `door`, `lane[0].name/subwayCode/busNo`, `passStopList.stations[].stationName/x/y`, 오류 시 `error` 필드 — 기억에 의존한 구조이며 실제 응답으로 검증하지 않았습니다. 특히 **`door`(빠른 환승 문 번호) 필드가 실제로 오는지, 어떤 의미인지 확인되지 않았습니다.** 없으면 환승 데이터(`rail_to_rail_guides.json`)의 값으로 보충합니다.
 2. **ODsay 요청 파라미터**: `SX/SY/EX/EY/apiKey` (x=경도, y=위도)로 가정. 서버용 키는 ODsay에서 **호출 서버 IP 등록**이 필요할 수 있습니다.
+   - **폰에서 직접 호출은 아직 실제 키로 시험하지 않았습니다.** ODsay가 브라우저(GitHub Pages 주소)에서 온 요청을 받아 주는지(CORS), URI 키의 도메인 검사가 실제로 걸리는지, 한 번 검색이 몇 건으로 세어지는지는 확인되지 않았습니다. 막히면 프록시 방식으로 돌아갑니다.
 3. **샘플 데이터(`src/data/sampleOdsayResponse.json`)는 가상**입니다. 역 순서(1호선 회기~서울역, 4호선 성신여대입구~충무로 일부)는 실제 순서를 따랐지만, 소요 시간·거리·좌표(대략값)·문 번호(4-2, 7-1)·버스 번호(`예시 100`)·버스 정류장 이름은 시연용으로 만든 값입니다.
 4. **노선 마스터의 역간 시간**은 모두 120초 균등 가정입니다(실제 구간 시간에 비율로 맞춤). 실제 역간 소요시간 공공데이터로 교체해야 합니다.
 5. **노선 색상**(`subwayLineVisuals.ts`)은 널리 쓰이는 대표색 값이며 공식 가이드와 대조하지 않았습니다. ODsay `subwayCode`는 1~9호선만 번호=호선으로 가정하고, 나머지는 노선 이름으로만 매칭합니다.
