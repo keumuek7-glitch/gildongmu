@@ -38,10 +38,9 @@ import { FamilyRelayClient, gdStore, type RelayState } from './services/familyRe
 import { RoleSelectScreen } from './screens/RoleSelectScreen';
 import { FamilyScreen, type ElderLoc } from './screens/FamilyScreen';
 import type { TripData } from './core/guardian/familyRelay';
-import { PairingPanel } from './components/PairingPanel';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { CompassView, type CompassTarget } from './components/CompassView';
 import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
-import { getKakaoKey, setKakaoKey } from './services/kakaoMaps';
 import { sendKakao, shareResultText } from './services/kakaoInApp';
 import { useBusProximityAlert } from './hooks/useBusProximityAlert';
 import { BusAlightBanner } from './components/BusAlightBanner';
@@ -106,7 +105,8 @@ export default function App() {
   const [compassTarget, setCompassTarget] = useState<CompassTarget | null>(null);
   const [familyGuide, setFamilyGuide] = useState<FamilyGuide | null>(() => sanitizeGuide(relay.last('guide')?.data));
   const [guideOpen, setGuideOpen] = useState(initial.guideLink);
-  const [kakaoKeyDraft, setKakaoKeyDraft] = useState(getKakaoKey);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [testMode, setTestMode] = useState(() => gdStore.get<boolean>('testMode', false));
   const [elderLoc, setElderLoc] = useState<ElderLoc | null>(() => (relay.last<ElderLoc>('elderLoc')?.data ?? null));
   const [screen, setScreen] = useState<Screen>('HOME');
   const [session, setSession] = useState<MultiLegState | null>(null);
@@ -442,37 +442,55 @@ export default function App() {
     return `시뮬레이션 시계 +${Math.round(simOffset / 1000)}초 · 상태: ${phase ?? '-'}`;
   })();
 
-  const pairingPanel = role && (
-    <PairingPanel
-      role={role}
-      paired={paired}
-      state={relayState}
-      onMakeLink={
-        role === 'child'
-          ? () => {
-              const room = relay.ensureRoom();
-              setPaired(true);
-              const t = relay.last('trip');
-              if (t) relay.send('trip', t.data);
-              return buildPairLink(window.location.href, room, 'elder');
-            }
-          : undefined
-      }
-      onUnpair={() => {
-        relay.leave();
-        setPaired(false);
-      }}
-      onChangeRole={() => pickRole(role === 'elder' ? 'child' : 'elder')}
-    />
-  );
+  const makePairLink = () => {
+    const room = relay.ensureRoom();
+    setPaired(true);
+    const t = relay.last('trip');
+    if (t) relay.send('trip', t.data);
+    return buildPairLink(window.location.href, room, 'elder');
+  };
 
   if (!role) return <div className="app"><RoleSelectScreen onPick={pickRole} /></div>;
+
+  if (settingsOpen) {
+    return (
+      <div className="app">
+        <SettingsScreen
+          role={role}
+          paired={paired}
+          relayState={relayState}
+          onMakeLink={role === 'child' ? makePairLink : undefined}
+          onUnpair={() => {
+            relay.leave();
+            setPaired(false);
+          }}
+          guardianPhone={guardianPhone}
+          onSavePhone={(p) => {
+            setGuardianPhone(p);
+            try { localStorage.setItem(PHONE_KEY, p); } catch { /* noop */ }
+          }}
+          testMode={testMode}
+          onToggleTestMode={(on) => {
+            setTestMode(on);
+            gdStore.set('testMode', on);
+          }}
+          demoNote={STATIC_DEMO ? '지금은 시연용 샘플 길(청량리역 → 서울대병원)만 나와요. 실제 길 찾기는 준비 중이에요.' : null}
+          onChangeRole={() => {
+            setSettingsOpen(false);
+            pickRole(role === 'elder' ? 'child' : 'elder');
+          }}
+          onBack={() => setSettingsOpen(false)}
+        />
+      </div>
+    );
+  }
 
   if (role === 'child') {
     return (
       <div className="app">
         <FamilyScreen
           elderLoc={elderLoc}
+          onOpenSettings={() => setSettingsOpen(true)}
           trip={familyTrip}
           news={notice}
           paired={paired}
@@ -502,9 +520,7 @@ export default function App() {
             const r = await sendKakao(`어르신께 길 안내: ${g.phrase}\n「길 보기」나 링크를 누르면 로드뷰와 방향이 떠요`, url, '길 보기');
             setNotice(r === 'fail' ? `보내지 못했어요. 이 링크를 복사해 보내 주세요: ${url}` : shareResultText(r));
           }}
-        >
-          {pairingPanel}
-        </FamilyScreen>
+        />
       </div>
     );
   }
@@ -516,8 +532,9 @@ export default function App() {
           favorites={FAVORITES}
           guardianDest={relayDest ?? guardianDest}
           resumeAvailable={pendingRestore?.state ? { destName: pendingRestore.state.destName } : null}
-          originLabel={originLabel}
-          guardianPhone={guardianPhone}
+          originWarning={originLabel.startsWith('현재 위치') ? null : originLabel}
+          notice={notice}
+          hasFamilyGuide={!!familyGuide}
           loading={loading}
           error={error}
           onGo={(d) => void searchRoutes(d)}
@@ -532,39 +549,10 @@ export default function App() {
             clearPersisted();
             setPendingRestore(null);
           }}
-          onSavePhone={(p) => {
-            setGuardianPhone(p);
-            try { localStorage.setItem(PHONE_KEY, p); } catch { /* noop */ }
-          }}
+          onOpenFamilyGuide={() => setGuideOpen(true)}
+          onSendMyLocation={() => void sendMyLocation()}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
-      )}
-
-      {screen === 'HOME' && (
-        <div className="screen">
-          {STATIC_DEMO && <p className="hint">지금은 시연용 샘플 길(청량리역 → 서울대병원)만 보여 줘요. 실제 길 찾기는 준비 중이에요.</p>}
-          {notice && <p className="status" role="status">{notice}</p>}
-          {familyGuide && (
-            <button className="btn btn--secondary" onClick={() => setGuideOpen(true)}>가족이 보낸 길 안내 보기</button>
-          )}
-          <button className="btn btn--secondary" onClick={() => void sendMyLocation()}>내 위치 가족에게 보내기</button>
-          {pairingPanel}
-          <details className="settings">
-            <summary>로드뷰 설정 (카카오 키)</summary>
-            <label className="field">
-              <span>카카오 JavaScript 키</span>
-              <input value={kakaoKeyDraft} onChange={(e) => setKakaoKeyDraft(e.target.value)} autoComplete="off" />
-            </label>
-            <button
-              className="btn btn--secondary"
-              onClick={() => {
-                setKakaoKey(kakaoKeyDraft);
-                setNotice('카카오 키를 저장했어요');
-              }}
-            >
-              저장
-            </button>
-          </details>
-        </div>
       )}
 
       {screen === 'CHOICE' && routes && (
@@ -654,7 +642,7 @@ export default function App() {
         />
       )}
 
-      <DevTestPanel actions={devActions} info={devInfo} enabled={screen === 'GUIDE' && !!session} />
+      {testMode && <DevTestPanel actions={devActions} info={devInfo} enabled={screen === 'GUIDE' && !!session} />}
 
       {screen === 'GUIDE' && (
         <SafetyBar

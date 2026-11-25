@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import type { GuardianDestination } from '../core/guardian/guardianLinkCodec';
-
 export interface Favorite {
   id: string;
   label: string;
@@ -9,26 +6,40 @@ export interface Favorite {
   y: number;
 }
 
+/**
+ * 어르신 홈.
+ * 평소에는 "어디로 가세요?" + 큰 버튼 몇 개만 보입니다.
+ * 이어서 안내, 가족이 보낸 목적지·길 안내는 있을 때만 위에 뜹니다.
+ * 연결·전화번호·카카오 키는 설정 화면으로 옮겼습니다.
+ */
 export function HomeScreen(props: {
   favorites: Favorite[];
-  guardianDest: GuardianDestination | null;
+  guardianDest: { name: string; x: number; y: number } | null;
   resumeAvailable: { destName: string } | null;
-  originLabel: string;
-  guardianPhone: string;
+  /** 현재 위치를 못 잡아 다른 곳에서 출발할 때만 문구가 있음 */
+  originWarning: string | null;
+  notice: string | null;
+  hasFamilyGuide: boolean;
   loading: boolean;
   error: string | null;
   onGo: (dest: { name: string; x: number; y: number }) => void;
   onResume: () => void;
   onDiscardResume: () => void;
-  onSavePhone: (phone: string) => void;
+  onOpenFamilyGuide: () => void;
+  onSendMyLocation: () => void;
+  onOpenSettings: () => void;
 }) {
-  const [phoneDraft, setPhoneDraft] = useState(props.guardianPhone);
   return (
     <main className="screen">
-      <header className="screen__header">
-        <h1>어디로 가세요?</h1>
-        <p className="muted">출발: {props.originLabel}</p>
-      </header>
+      <div className="topbar">
+        <h1 className="topbar__title">어디로 가세요?</h1>
+        <button className="gear-btn" onClick={props.onOpenSettings} aria-label="설정">
+          <span aria-hidden="true">⚙</span> 설정
+        </button>
+      </div>
+
+      {props.originWarning && <p className="muted warn">출발: {props.originWarning}</p>}
+      {props.notice && <p className="status" role="status">{props.notice}</p>}
 
       {props.resumeAvailable && (
         <div className="banner banner--info">
@@ -38,9 +49,13 @@ export function HomeScreen(props: {
         </div>
       )}
 
+      {props.hasFamilyGuide && (
+        <button className="btn btn--primary" onClick={props.onOpenFamilyGuide}>가족이 보낸 길 보기</button>
+      )}
+
       {props.guardianDest && (
         <div className="banner banner--guardian">
-          <p className="banner__title">보호자가 보낸 목적지</p>
+          <p className="banner__title">가족이 보낸 목적지</p>
           <p className="big">{props.guardianDest.name}</p>
           <button className="btn btn--primary" disabled={props.loading} onClick={() => props.onGo(props.guardianDest!)}>
             이 곳으로 길 찾기
@@ -60,19 +75,7 @@ export function HomeScreen(props: {
       {props.loading && <p className="status" role="status">길을 찾고 있어요…</p>}
       {props.error && <p className="status status--error" role="alert">{props.error}</p>}
 
-      <details className="settings">
-        <summary>보호자 연락처 설정</summary>
-        <label className="field">
-          <span>보호자 휴대폰 번호</span>
-          <input
-            inputMode="tel"
-            value={phoneDraft}
-            placeholder="010-0000-0000"
-            onChange={(e) => setPhoneDraft(e.target.value)}
-          />
-        </label>
-        <button className="btn btn--secondary" onClick={() => props.onSavePhone(phoneDraft)}>저장</button>
-      </details>
+      <button className="btn btn--secondary" onClick={props.onSendMyLocation}>내 위치 가족에게 보내기</button>
     </main>
   );
 }

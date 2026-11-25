@@ -182,3 +182,18 @@ body { margin: 0; background: var(--bg); }
 button.chip { min-height: 52px; padding: 6px 16px; font-size: 20px; border: 3px solid var(--border); background: #fff; color: var(--fg); cursor: pointer; }
 button.chip.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
 .leave-kakao { min-height: 80dvh; justify-content: center; text-align: center; }
+
+/* ── 상단 줄(제목 + 설정 버튼), 설정 화면, 접이식 정차 목록 ── */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar__title { font-size: 32px; margin: 8px 0 4px; flex: 1; min-width: 0; }
+.gear-btn {
+  flex: none; min-height: 56px; padding: 6px 16px; border-radius: var(--radius); border: 3px solid var(--border);
+  background: var(--secondary-bg); color: var(--fg); font-size: 20px; font-weight: 800; cursor: pointer; white-space: nowrap;
+}
+.gear-btn:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
+.back-btn { width: auto; align-self: flex-start; }
+.settings-block { border-top: 3px solid #d6d3cb; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.settings-block__title { font-size: 26px; margin: 0; }
+.check-row { display: flex; align-items: center; gap: 12px; font-size: 20px; min-height: 56px; }
+.check-row input { width: 28px; height: 28px; flex: none; }
+.stops-fold summary { cursor: pointer; font-weight: 700; min-height: 48px; display: flex; align-items: center; }

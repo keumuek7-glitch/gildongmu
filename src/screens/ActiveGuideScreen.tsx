@@ -64,7 +64,12 @@ function RideView(props: {
       ) : (
         <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
       )}
-      {t.phase !== 'WAITING_BOARDING' && <StopProgress leg={leg} t={t} />}
+      {t.phase !== 'WAITING_BOARDING' && (
+        <details className="stops-fold">
+          <summary>정차하는 곳 모두 보기</summary>
+          <StopProgress leg={leg} t={t} />
+        </details>
+      )}
     </div>
   );
 }
@@ -82,7 +87,6 @@ export function ActiveGuideScreen(props: {
 }) {
   const { session, binding } = props;
   const leg = currentLeg(session);
-  const step = `${Math.min(session.currentIndex + 1, session.legs.length)} / ${session.legs.length}단계`;
 
   let body: ReactNode;
   if (session.finished || !leg) {
@@ -121,9 +125,19 @@ export function ActiveGuideScreen(props: {
   return (
     <main className="screen screen--guide">
       <header className="screen__header screen__header--compact">
-        <p className="muted">{session.destName} 가는 길 · {step}</p>
+        <p className="muted">{session.destName} 가는 길</p>
       </header>
       {body}
+      {!session.finished && (
+        <button
+          className="btn btn--ghost"
+          onClick={() => {
+            if (window.confirm('길 안내를 그만할까요?')) props.onFinish();
+          }}
+        >
+          안내 그만하기
+        </button>
+      )}
     </main>
   );
 }
