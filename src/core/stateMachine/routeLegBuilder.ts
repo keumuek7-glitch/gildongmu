@@ -35,6 +35,8 @@ export interface WalkLeg {
   railGuide?: RailToRailGuide;
   exitGuide?: StationExitGuide;
   nextRide?: RideLeg;
+  /** 나침반으로 갈 곳 (출발 도보=첫 탑승 정류장/역, 마지막 도보=목적지). 좌표를 모르면 없음 */
+  target?: { name: string; lat: number; lng: number };
 }
 
 export type RouteLeg = RideLeg | WalkLeg;
@@ -93,7 +95,7 @@ function buildRide(seg: RouteSegment, id: string): RideLeg | null {
 /** 선택된 RouteCandidate → RouteLeg[] */
 export function buildRouteLegs(
   route: RouteCandidate,
-  opts: { destName?: string; repo?: TransferGuideRepository } = {},
+  opts: { destName?: string; repo?: TransferGuideRepository; destCoord?: { x: number; y: number } } = {},
 ): RouteLeg[] {
   const repo = opts.repo ?? transferGuideRepository;
   const segs = route.segments;
@@ -130,6 +132,15 @@ export function buildRouteLegs(
       adjustedMin: s.durationMin * SENIOR_WALK_FACTOR,
       nextRide: next,
     };
+    // 나침반 목표: ODsay 좌표(x=경도, y=위도) → 위도·경도
+    if (walkKind === 'EXIT' && opts.destCoord) {
+      leg.target = { name: opts.destName ?? '목적지', lat: opts.destCoord.y, lng: opts.destCoord.x };
+    } else if (walkKind === 'ACCESS' && nextIdx !== undefined) {
+      const first = segs[nextIdx].stops?.[0];
+      if (first && Number.isFinite(first.x) && Number.isFinite(first.y)) {
+        leg.target = { name: next?.boardName ?? first.name, lat: first.y!, lng: first.x! };
+      }
+    }
     if (walkKind === 'TRANSFER' && prev) {
       leg.railGuide = repo.findRailTransfer(prev.alightName, prev.lineKey, next?.lineKey);
     }

@@ -36,6 +36,9 @@ import { FamilyRelayClient, gdStore, type RelayState } from './services/familyRe
 import { RoleSelectScreen } from './screens/RoleSelectScreen';
 import { FamilyScreen, type ElderLoc } from './screens/FamilyScreen';
 import { PairingPanel } from './components/PairingPanel';
+import { CompassView, type CompassTarget } from './components/CompassView';
+import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
+import { getKakaoKey, setKakaoKey } from './services/kakaoMaps';
 
 type Screen = 'HOME' | 'CHOICE' | 'GUIDE';
 interface Dest { name: string; x: number; y: number }
@@ -81,6 +84,10 @@ export default function App() {
   const [paired, setPaired] = useState(() => relay.isPaired());
   const [relayDest, setRelayDest] = useState(() => relayTripDest(relay.last('trip')));
   const [notice, setNotice] = useState<string | null>(initial.pairedNow ? '가족과 연결됐어요' : null);
+  const [compassTarget, setCompassTarget] = useState<CompassTarget | null>(null);
+  const [familyGuide, setFamilyGuide] = useState<FamilyGuide | null>(() => sanitizeGuide(relay.last('guide')?.data));
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [kakaoKeyDraft, setKakaoKeyDraft] = useState(getKakaoKey);
   const [elderLoc, setElderLoc] = useState<ElderLoc | null>(() => (relay.last<ElderLoc>('elderLoc')?.data ?? null));
   const [screen, setScreen] = useState<Screen>('HOME');
   const [session, setSession] = useState<MultiLegState | null>(null);
@@ -108,6 +115,14 @@ export default function App() {
         if (m.type === 'trip') setRelayDest(relayTripDest(m));
         else if (m.type === 'tripReset') setRelayDest(null);
         else if (m.type === 'viewed') setNotice('가족이 내 위치를 봤어요');
+        else if (m.type === 'guide') {
+          const g = sanitizeGuide(m.data);
+          if (g) {
+            setFamilyGuide(g);
+            setGuideOpen(true);
+            vibrate([300]);
+          }
+        }
       } else if (role === 'child') {
         if (m.type === 'elderLoc') {
           setElderLoc(m.data as ElderLoc);
@@ -148,6 +163,7 @@ export default function App() {
   }, [relay]);
   const speech = useMemo(() => createWebSpeechAdapter(), []);
   const now = useCallback(() => Date.now() + simOffsetRef.current, []);
+  const speakText = useCallback((t: string) => speech.speak(t), [speech]);
 
   const clearPersisted = usePersistedMultiLegSession(session, now);
 
@@ -234,7 +250,7 @@ export default function App() {
   const pickRoute = useCallback(
     (r: ScoredRoute) => {
       const destName = dest?.name ?? '목적지';
-      const legs = buildRouteLegs(r.candidate, { destName });
+      const legs = buildRouteLegs(r.candidate, { destName, destCoord: dest ? { x: dest.x, y: dest.y } : undefined });
       setWarning({ kind: 'NONE' });
       simOffsetRef.current = 0;
       setSimOffset(0);
@@ -430,8 +446,27 @@ export default function App() {
       {screen === 'HOME' && (
         <div className="screen">
           {notice && <p className="status" role="status">{notice}</p>}
+          {familyGuide && (
+            <button className="btn btn--secondary" onClick={() => setGuideOpen(true)}>가족이 보낸 길 안내 보기</button>
+          )}
           <button className="btn btn--secondary" onClick={() => void sendMyLocation()}>내 위치 가족에게 보내기</button>
           {pairingPanel}
+          <details className="settings">
+            <summary>로드뷰 설정 (카카오 키)</summary>
+            <label className="field">
+              <span>카카오 JavaScript 키</span>
+              <input value={kakaoKeyDraft} onChange={(e) => setKakaoKeyDraft(e.target.value)} autoComplete="off" />
+            </label>
+            <button
+              className="btn btn--secondary"
+              onClick={() => {
+                setKakaoKey(kakaoKeyDraft);
+                setNotice('카카오 키를 저장했어요');
+              }}
+            >
+              저장
+            </button>
+          </details>
         </div>
       )}
 
@@ -459,10 +494,46 @@ export default function App() {
             onWalkDone={() => dispatch({ type: 'WALK_DONE', now: now() })}
             onReroute={reroute}
             onFinish={goHome}
+            onCompass={setCompassTarget}
           />
           {loading && <p className="status" role="status">길을 다시 찾고 있어요…</p>}
           {error && <p className="status status--error" role="alert">{error}</p>}
         </>
+      )}
+
+      {guideOpen && familyGuide && !compassTarget && (
+        <RoadviewGuide
+          guide={familyGuide}
+          speak={speakText}
+          onClose={() => setGuideOpen(false)}
+          onCompass={
+            (relayDest ?? dest)
+              ? () => {
+                  const d = relayDest ?? dest!;
+                  setCompassTarget({ name: d.name, lat: d.y, lng: d.x });
+                }
+              : undefined
+          }
+        />
+      )}
+
+      {compassTarget && (
+        <CompassView
+          target={compassTarget}
+          speak={speakText}
+          onClose={() => setCompassTarget(null)}
+          onRoadview={familyGuide ? () => { setCompassTarget(null); setGuideOpen(true); } : undefined}
+          onArrived={() => {
+            setCompassTarget(null);
+            setGuideOpen(false);
+            if (screen === 'GUIDE' && sessionRef.current && !sessionRef.current.finished) {
+              dispatch({ type: 'WALK_DONE', now: now() });
+            } else if (role === 'elder') {
+              relay.send('arrived', { name: compassTarget.name });
+              setNotice('도착했어요');
+            }
+          }}
+        />
       )}
 
       <DevTestPanel actions={devActions} info={devInfo} enabled={screen === 'GUIDE' && !!session} />

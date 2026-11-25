@@ -114,3 +114,42 @@ body { margin: 0; background: var(--bg); }
   padding: 10px max(12px, calc((100vw - 720px) / 2 + 12px)); background: #fff; border-top: 3px solid var(--border);
 }
 .safety-bar .btn { font-size: 20px; }
+
+/* ── 나침반 (기존 길동무에서 옮김): 목적지가 늘 위, 방향이 맞으면 화면 전체 초록 ── */
+.compass, .rv-guide {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: var(--bg); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  max-width: 720px; margin: 0 auto;
+}
+.compass { align-items: stretch; }
+.compass__back { width: auto; align-self: flex-start; min-height: 56px; }
+.compass__dest { font-size: 26px; font-weight: 800; text-align: center; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); }
+.compass__svg { width: 100%; max-width: 350px; height: auto; max-height: 44dvh; align-self: center; }
+.compass__nsew text { fill: #6b6b6b; font-size: 30px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
+.compass__path { stroke: #15803d; stroke-width: 10; stroke-dasharray: 18 14; stroke-linecap: round; fill: none; }
+.compass__arrow-line { stroke: var(--primary); stroke-width: 20; stroke-linecap: round; fill: none; }
+.compass__arrow-head { fill: var(--primary); }
+.compass__svg g[transform] { transition: transform .15s linear; }
+.compass__me { fill: #ffd36b; stroke: var(--border); stroke-width: 3; }
+.compass__me-tag { font-size: 30px; font-weight: 900; text-anchor: middle; fill: var(--fg); }
+.compass__msg { font-size: 40px; font-weight: 900; text-align: center; margin: 0; }
+.compass__dist { font-size: 20px; text-align: center; margin: 0; }
+.compass__actions { display: flex; gap: 12px; }
+.compass__sim { font-size: 18px; }
+.compass--aligned { background: #166534; color: #fff; }
+.compass--aligned .compass__dest { border-color: #fff; background: #fff; color: #166534; }
+.compass--aligned .compass__path { display: none; }
+.compass--aligned .compass__arrow-line { stroke: #fff; }
+.compass--aligned .compass__arrow-head { fill: #fff; }
+.compass--aligned .compass__nsew text { fill: #bfe3cb; }
+.compass--aligned .compass__msg { font-size: 52px; }
+.compass--aligned .btn { border-color: #fff; background: transparent; color: #fff; }
+.compass--aligned .btn--primary { background: #fff; color: #166534; }
+
+/* ── 가족이 보낸 로드뷰 안내 ── */
+.rv-guide__box { position: relative; height: max(260px, calc(100dvh - 360px)); border-radius: 18px; overflow: hidden; background: #ecebe6; border: 3px solid #d6d3cb; }
+.rv-guide__view { position: absolute; inset: 0; }
+.rv-guide__note { position: absolute; inset: auto 12px 12px 12px; margin: 0; font-size: 18px; text-align: center; color: #333; background: rgba(255,255,255,.85); border-radius: 10px; padding: 8px; z-index: 6; }
+.rv-guide__arrow { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: 110px; height: 180px; z-index: 5; pointer-events: none; fill: none; stroke: #ca8a04; stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.rv-guide__row { display: flex; gap: 12px; align-items: center; }
+.rv-guide__row .btn { width: auto; }

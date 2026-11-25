@@ -78,6 +78,8 @@ export function ActiveGuideScreen(props: {
   onWalkDone: () => void;
   onReroute: () => void;
   onFinish: () => void;
+  /** 도보 구간에서 나침반 열기 */
+  onCompass?: (target: { name: string; lat: number; lng: number }) => void;
 }) {
   const { session, binding } = props;
   const leg = currentLeg(session);
@@ -104,7 +106,17 @@ export function ActiveGuideScreen(props: {
     );
   } else if (leg.type === 'TRANSFER_WALK_LEG') {
     const Card = leg.walkKind === 'TRANSFER' ? TransferGuidanceCard : leg.walkKind === 'EXIT' ? ExitGuidanceCard : AccessWalkCard;
-    body = <Card key={leg.id} leg={leg} onDone={props.onWalkDone} {...binding} />;
+    const target = leg.target;
+    body = (
+      <>
+        <Card key={leg.id} leg={leg} onDone={props.onWalkDone} {...binding} />
+        {target && props.onCompass && (
+          <button className="btn btn--secondary" onClick={() => props.onCompass!(target)}>
+            🧭 나침반으로 방향 보기
+          </button>
+        )}
+      </>
+    );
   }
 
   return (
