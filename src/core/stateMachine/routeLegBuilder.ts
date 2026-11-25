@@ -42,6 +42,8 @@ export interface WalkLeg {
   adjustedMin: number;
   railGuide?: RailToRailGuide;
   exitGuide?: StationExitGuide;
+  /** 출구가 둘로 나뉠 때: 엘리베이터로 나가는 길 / 계단·에스컬레이터로 나가는 길 */
+  exitOptions?: { elevator?: StationExitGuide; stairs?: StationExitGuide };
   nextRide?: RideLeg;
   /** 나침반으로 갈 곳 (출발 도보=첫 탑승 정류장/역, 마지막 도보=목적지). 좌표를 모르면 없음 */
   target?: { name: string; lat: number; lng: number };
@@ -169,7 +171,12 @@ export function buildRouteLegs(
       leg.railGuide = repo.findRailTransfer(prev.alightName, prev.lineKey, next?.lineKey);
     }
     if (walkKind === 'EXIT' && prev) {
-      leg.exitGuide = repo.findExitGuide(prev.alightName, prev.type === 'SUBWAY_LEG' ? prev.lineKey : undefined);
+      const exitLine = prev.type === 'SUBWAY_LEG' ? prev.lineKey : undefined;
+      leg.exitGuide = repo.findExitGuide(prev.alightName, exitLine);
+      const all = repo.findExitGuides(prev.alightName, exitLine);
+      const elevator = all.find((g) => g.elevatorExit);
+      const stairs = all.find((g) => !g.elevatorExit);
+      if (elevator || stairs) leg.exitOptions = { elevator, stairs };
     }
     legs.push(leg);
   });

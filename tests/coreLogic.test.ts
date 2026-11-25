@@ -136,6 +136,21 @@ describe('routeLegBuilder', () => {
     expect(exit.walkKind).toBe('EXIT');
     expect(exit.exitGuide?.exitNo).toBe('3');
   });
+
+  it('출구가 둘이면 엘리베이터 길과 계단·에스컬레이터 길을 나눠 담는다 (혜화 3번 / 4번)', () => {
+    const exit = buildRouteLegs(fastRoute, { destName: '서울대병원' }).at(-1) as WalkLeg;
+    expect(exit.exitOptions?.elevator?.exitNo).toBe('3');
+    expect(exit.exitOptions?.elevator?.elevatorExit).toBe(true);
+    expect(exit.exitOptions?.stairs?.exitNo).toBe('4');
+    expect(exit.exitOptions?.stairs?.elevatorExit).toBe(false);
+    // 기본 안내(exitGuide)는 예전처럼 엘리베이터 출구 우선
+    expect(exit.exitGuide?.exitNo).toBe('3');
+  });
+
+  it('출구 자료가 없는 역은 exitOptions 가 없다', () => {
+    const legs = buildRouteLegs(comfortRoute, { destName: '서울대병원' });
+    expect((legs.at(-1) as WalkLeg).exitOptions).toBeUndefined();
+  });
 });
 
 function subwayLeg(): RideLeg {

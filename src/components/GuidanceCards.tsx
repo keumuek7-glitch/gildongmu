@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { RideLeg, WalkLeg } from '../core/stateMachine/routeLegBuilder';
+import type { StationExitGuide } from '../core/metadata/stationTransferMetadata';
 import { walkVM, type GuidanceViewModel } from '../core/tts/guidanceSpeechBuilder';
 import { useCardAutoSpeech } from '../hooks/useCardAutoSpeech';
 import type { LineVisual } from '../core/metadata/subwayLineVisuals';
@@ -79,18 +81,92 @@ export function TransferGuidanceCard({ leg, onDone, onCompass, speak, spoken }: 
   );
 }
 
-/** 출구 안내 카드 (마지막 하차 → 목적지) */
-export function ExitGuidanceCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
+/** 노란 큰 글자 한 문장: 몇 번 출구로 나가는지 (누르면 다시 읽어 줘요) */
+function ExitNumberCard({ guide, onReplay }: { guide: StationExitGuide; onReplay: () => void }) {
+  const sentence = `${guide.exitNo}번 출구로 나가요`;
+  return (
+    <section
+      className="card card--exit card--tap"
+      aria-live="polite"
+      aria-label={`${sentence}. 누르면 다시 읽어 줘요`}
+      tabIndex={0}
+      onClick={onReplay}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onReplay();
+        }
+      }}
+    >
+      <h1 className="card__title">{sentence}</h1>
+    </section>
+  );
+}
+
+/** 엘리베이터 / 계단·에스컬레이터 중 어느 길로 나갈지 고르는 화면 (버튼 2개) */
+function ExitChoiceCard(props: SpeechBinding & { leg: WalkLeg; onPick: (kind: 'elevator' | 'stairs') => void }) {
+  const { leg } = props;
+  const question = '어느 길로 나갈까요?';
+  const replay = useCardAutoSpeech(`${leg.id}:EXITCHOICE`, '어느 길로 나갈까요? 엘리베이터, 또는 계단이나 에스컬레이터를 골라 주세요', props.speak, props.spoken);
+  return (
+    <div className="stack">
+      <section className="card card--normal card--tap" tabIndex={0} aria-label={`${question} 누르면 다시 읽어 줘요`} onClick={replay}>
+        <h1 className="card__title">{question}</h1>
+      </section>
+      <button className="btn btn--primary" onClick={() => props.onPick('elevator')}>🛗 엘리베이터</button>
+      <button className="btn btn--secondary" onClick={() => props.onPick('stairs')}>🪜 계단 · 에스컬레이터</button>
+    </div>
+  );
+}
+
+/** 고른 길의 출구 번호(노란 한 문장) + 걷기 버튼 */
+function ExitRouteCard(props: WalkCardProps & { guide: StationExitGuide; kind: 'elevator' | 'stairs' | 'only'; onChange?: () => void }) {
+  const { leg, guide } = props;
+  const vm = walkVM({ ...leg, exitGuide: guide });
+  const replay = useCardAutoSpeech(`${leg.id}:CARD:${props.kind}`, vm.speech, props.speak, props.spoken);
+  return (
+    <div className="stack">
+      <ExitNumberCard guide={guide} onReplay={replay} />
+      <WalkMainButton onDone={props.onDone} onCompass={props.onCompass} doneLabel="목적지에 도착했어요" />
+      {props.onChange && (
+        <button className="btn btn--secondary" onClick={props.onChange}>
+          {props.kind === 'elevator' ? '🪜 계단으로' : '🛗 엘리베이터로'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 출구 안내 카드 (마지막 하차 → 목적지).
+ * - 엘리베이터 길과 계단·에스컬레이터 길이 둘 다 있으면 먼저 고르게 하고,
+ * - 하나뿐이면 바로 노란 출구 번호 한 문장을 보여 주고,
+ * - 출구 자료가 없으면 예전처럼 "목적지까지 걸어가요" 한 문장을 보여 줍니다.
+ */
+export function ExitGuidanceCard(props: WalkCardProps) {
+  const { leg } = props;
+  const [picked, setPicked] = useState<'elevator' | 'stairs' | null>(null);
+  const opts = leg.exitOptions;
+  const both = !!(opts?.elevator && opts?.stairs);
+
+  if (both && picked === null) return <ExitChoiceCard {...props} onPick={setPicked} />;
+  if (both && picked) {
+    return (
+      <ExitRouteCard {...props} guide={opts![picked]!} kind={picked} onChange={() => setPicked(picked === 'elevator' ? 'stairs' : 'elevator')} />
+    );
+  }
+  const only = opts?.elevator ?? opts?.stairs ?? leg.exitGuide;
+  if (only) return <ExitRouteCard {...props} guide={only} kind="only" />;
+
+  return <ExitPlainCard {...props} />;
+}
+
+/** 출구 자료가 없을 때: "목적지까지 걸어가요" 한 문장 */
+function ExitPlainCard({ leg, onDone, onCompass, speak, spoken }: WalkCardProps) {
   const vm = walkVM(leg);
   const replay = useCardAutoSpeech(`${leg.id}:CARD`, vm.speech, speak, spoken);
   return (
     <div className="stack">
-      {leg.exitGuide && (
-        <div className="exit-badge" aria-label={`${leg.exitGuide.exitNo}번 출구`}>
-          {leg.exitGuide.exitNo}
-          <small>번 출구</small>
-        </div>
-      )}
       <GuidanceBody vm={vm} onReplay={replay} />
       <WalkMainButton onDone={onDone} onCompass={onCompass} doneLabel="목적지에 도착했어요" />
     </div>
