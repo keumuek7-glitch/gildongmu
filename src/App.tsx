@@ -20,7 +20,8 @@ import {
 } from './core/stateMachine/multiLegManager';
 import { reconcileSession, type ReconcileResult, type ReconcileWarning } from './core/stateMachine/sessionTimeReconciler';
 import { decodeGuardianLink } from './core/guardian/guardianLinkCodec';
-import { fetchSeniorRoutesOrSample, RouteApiError, STATIC_DEMO } from './services/routeApiClient';
+import { RouteApiError } from './services/routeApiClient';
+import { routeService } from './services/routeServiceInstance';
 import { createWebSpeechAdapter, vibrate } from './services/speechAdapter';
 import { getCurrentLocation, FALLBACK_LOCATION } from './utils/currentLocationHelper';
 import { loadPersistedSession, usePersistedMultiLegSession } from './hooks/usePersistedMultiLegSession';
@@ -257,7 +258,7 @@ export default function App() {
       try {
         const loc = await getCurrentLocation();
         setOriginLabel(loc.source === 'GPS' ? '현재 위치' : `${FALLBACK_LOCATION.name} · ${loc.reason}`);
-        const candidates = await fetchSeniorRoutesOrSample({ sx: loc.x, sy: loc.y, ex: target.x, ey: target.y });
+        const { routes: candidates } = await routeService.getRoutes({ sx: loc.x, sy: loc.y, ex: target.x, ey: target.y });
         const classified = classifyRoutes(candidates);
         if (!classified) throw new RouteApiError('NO_ROUTE', '갈 수 있는 길을 찾지 못했어요.');
         setRoutes(classified);
@@ -535,7 +536,6 @@ export default function App() {
             setTestMode(on);
             gdStore.set('testMode', on);
           }}
-          demoNote={STATIC_DEMO ? '지금은 시연용 샘플 길(청량리역 → 서울대병원)만 나와요. 실제 길 찾기는 준비 중이에요.' : null}
           onChangeRole={() => {
             setSettingsOpen(false);
             pickRole(role === 'elder' ? 'child' : 'elder');

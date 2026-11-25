@@ -3,6 +3,9 @@ import type { Role } from '../core/guardian/familyRelay';
 import type { RelayState } from '../services/familyRelayClient';
 import { PairingPanel } from '../components/PairingPanel';
 import { getKakaoKey, setKakaoKey } from '../services/kakaoMaps';
+import { STATIC_DEMO } from '../services/routeApiClient';
+import { pickProvider } from '../services/routeService';
+import { dailyLimit, getOdsayKey, routeCache, setOdsayKey } from '../services/routeServiceInstance';
 
 /**
  * 설정 화면 (어르신·가족 공통).
@@ -25,15 +28,24 @@ export function SettingsScreen(props: {
   locationNote?: string | null;
   hasFamilyGuide?: boolean;
   onOpenFamilyGuide?: () => void;
-  /** 샘플 길만 되는 상태일 때 보여 줄 안내 */
-  demoNote?: string | null;
   onChangeRole: () => void;
   onBack: () => void;
 }) {
   const [phoneDraft, setPhoneDraft] = useState(props.guardianPhone);
   const [keyDraft, setKeyDraft] = useState(getKakaoKey);
+  const [odsayDraft, setOdsayDraft] = useState(getOdsayKey);
   const [saved, setSaved] = useState('');
+  const [, refresh] = useState(0);
   const elder = props.role === 'elder';
+
+  const provider = pickProvider({ odsayKey: getOdsayKey(), staticDemo: STATIC_DEMO });
+  const cacheStats = routeCache.stats();
+  const routeModeNote =
+    provider.id === 'sample'
+      ? '지금은 시연용 샘플 길(청량리역에서 서울대병원까지)만 나와요. 키를 넣으면 진짜 길을 찾아요.'
+      : provider.id === 'odsay-browser'
+        ? '이 폰에서 바로 길을 찾고 있어요.'
+        : '길 찾기 서버(프록시)로 길을 찾고 있어요.';
 
   const connection: ReactNode = (
     <PairingPanel
@@ -112,8 +124,45 @@ export function SettingsScreen(props: {
       </section>
 
       <section className="settings-block">
+        <h2 className="settings-block__title">길 찾기 (ODsay 키)</h2>
+        <p className="hint">{routeModeNote}</p>
+        <label className="field">
+          <span>ODsay 길 찾기 키 (이 폰에만 저장돼요)</span>
+          <input value={odsayDraft} onChange={(e) => setOdsayDraft(e.target.value)} autoComplete="off" />
+        </label>
+        <button
+          className="btn btn--secondary"
+          onClick={() => {
+            setOdsayKey(odsayDraft);
+            setSaved('odsay');
+            refresh((n) => n + 1);
+          }}
+        >
+          저장
+        </button>
+        {saved === 'odsay' && (
+          <p className="hint" role="status">{getOdsayKey() ? '길 찾기 키를 저장했어요' : '길 찾기 키를 지웠어요'}</p>
+        )}
+        <p className="hint">오늘 남은 길 찾기: {dailyLimit.remaining()}번 (하루 {dailyLimit.limit}번까지)</p>
+        <p className="hint">
+          저장해 둔 길: {routeCache.count()}곳 · 저장에서 꺼낸 횟수 {cacheStats.hit} 대 새로 찾은 횟수 {cacheStats.miss}
+        </p>
+        <button
+          className="btn btn--ghost"
+          onClick={() => {
+            routeCache.clear();
+            routeCache.resetStats();
+            setSaved('cache');
+            refresh((n) => n + 1);
+          }}
+        >
+          저장해 둔 길 지우기
+        </button>
+        {saved === 'cache' && <p className="hint" role="status">저장해 둔 길을 지웠어요</p>}
+      </section>
+
+      <section className="settings-block">
         <h2 className="settings-block__title">시험용</h2>
-        {props.demoNote && <p className="hint">{props.demoNote}</p>}
         <label className="check-row">
           <input
             type="checkbox"
