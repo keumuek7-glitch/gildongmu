@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { currentLeg, type MultiLegState } from '../core/stateMachine/multiLegManager';
 import { isRideLeg, type RideLeg } from '../core/stateMachine/routeLegBuilder';
 import { currentTransitVM, type TransitState } from '../core/stateMachine/transitStateMachine';
+import { BackButton } from '../components/BackButton';
 import { BoardingDirectionCheck } from '../components/BoardingDirectionCheck';
 import { arrivedVM } from '../core/tts/guidanceSpeechBuilder';
 import {
@@ -50,7 +51,8 @@ function RideView(props: {
 
 /**
  * 길 안내 화면. 버튼은 [지금 할 일] 하나. 막히면 우측 상단 SOS 버튼으로 가족에게 전화해요.
- * 안내를 그만두려면 폰의 뒤로 버튼을 눌러요 (확인창이 떠요).
+ * 안내를 그만두려면 왼쪽 위의 작은 [뒤로]나 폰의 뒤로 버튼을 눌러요 (확인창이 떠요).
+ * 이 화면에서는 화살표 글자를 쓰지 않아요(열차·버스 방향으로 읽힐 수 있어서).
  */
 export function ActiveGuideScreen(props: {
   session: MultiLegState;
@@ -60,6 +62,8 @@ export function ActiveGuideScreen(props: {
   onWalkDone: () => void;
   onReroute: () => void;
   onFinish: () => void;
+  /** 작은 [뒤로]: 안내를 그만할지 확인하는 일은 부르는 쪽에서 합니다 */
+  onBack?: () => void;
   /** 걷는 구간에서 나침반 열기 */
   onCompass?: (target: { name: string; lat: number; lng: number }) => void;
 }) {
@@ -103,6 +107,7 @@ export function ActiveGuideScreen(props: {
 
   return (
     <main className="screen screen--guide">
+      {props.onBack && !session.finished && <BackButton arrow={false} onClick={props.onBack} />}
       {body}
     </main>
   );

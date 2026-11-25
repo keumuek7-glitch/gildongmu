@@ -3,6 +3,8 @@ import { DIR8, PHRASES, PHRASE_MAX, dirName, layoutFamilyMap } from '../core/fam
 import { bearingDeg, fmtDist, norm360, type LatLng } from '../core/navigation/compass';
 import type { LatLngPlace, TripData } from '../core/guardian/familyRelay';
 import { kakaoReason, loadKakao, searchPlaces, getKakaoKey, type PlaceResult } from '../services/kakaoMaps';
+import { BackButton } from '../components/BackButton';
+import { useBackClose } from '../hooks/useBackClose';
 
 export interface ElderLoc {
   lat: number;
@@ -63,7 +65,7 @@ function FamilyMap({ elder, dest }: { elder: ElderLoc; dest: LatLngPlace | null 
 }
 
 /** 방향(8방향 다이얼 + 15° 조정)과 한 마디를 골라 어르신 폰에 보냄 */
-function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onSend: (g: GuideToSend) => void; onClose: () => void }) {
+export function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onSend: (g: GuideToSend) => void; onClose: () => void }) {
   const destPan = () => (props.dest ? Math.round(bearingDeg(props.elder, props.dest)) : Math.round(props.elder.heading ?? 0));
   const [pan, setPan] = useState(destPan);
   const [phrase, setPhrase] = useState<string>(PHRASES[0]);
@@ -71,6 +73,7 @@ function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onS
   const finalPhrase = (custom.trim() || phrase).slice(0, PHRASE_MAX);
   return (
     <div className="card">
+      <BackButton onClick={props.onClose} />
       <p className="card__title">가야 할 쪽을 골라 주세요</p>
       <svg className="dial" viewBox="0 0 200 200" role="img" aria-label={`${dirName(pan)}쪽 ${pan}도`}>
         <circle cx="100" cy="100" r="88" fill="none" stroke="#bbb" strokeWidth="4" />
@@ -107,7 +110,6 @@ function DirectionSender(props: { elder: ElderLoc; dest: LatLngPlace | null; onS
       >
         “{finalPhrase}” 보내기
       </button>
-      <button className="btn btn--ghost" onClick={props.onClose}>닫기</button>
     </div>
   );
 }
@@ -134,6 +136,8 @@ export function FamilyScreen(props: {
   const [results, setResults] = useState<PlaceResult[] | null>(null);
   const [searchNote, setSearchNote] = useState('');
   const [sending, setSending] = useState(false);
+  // 방향 보내기 창이 열려 있으면 폰의 뒤로 버튼으로도 닫혀요
+  useBackClose(sending, () => setSending(false));
   const [, tick] = useState(0);
 
   // "몇 분 전" 표시를 10초마다 새로
