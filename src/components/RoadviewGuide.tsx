@@ -68,8 +68,15 @@ export function RoadviewGuide(props: {
         </svg>
       </div>
       <div className="rv-guide__row">
-        <p className="big">{guide.phrase}</p>
-        <button className="btn btn--secondary" onClick={() => speak(guide.phrase)} aria-label="다시 듣기">🔊 다시 듣기</button>
+        <p
+          className="big rv-guide__phrase"
+          tabIndex={0}
+          aria-label={`${guide.phrase}. 누르면 다시 읽어 줘요`}
+          onClick={() => speak(guide.phrase)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); speak(guide.phrase); } }}
+        >
+          {guide.phrase}
+        </p>
       </div>
       {props.onCompass && <button className="btn btn--primary" onClick={props.onCompass}>나침반</button>}
     </div>

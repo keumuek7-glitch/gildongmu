@@ -37,3 +37,13 @@ export function buildSmsUri(phone: string, body: string, userAgent = ''): string
   const sep = /iPhone|iPad|iPod/i.test(userAgent) ? '&' : '?';
   return `sms:${cleaned}${sep}body=${encodeURIComponent(body)}`;
 }
+
+/**
+ * 전화 걸기 링크. 번호에서 숫자와 맨 앞 +만 남기고, 숫자가 3개 미만이면 null (번호 없음).
+ */
+export function buildTelUri(phone: string): string | null {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 3) return null;
+  const plus = phone.trim().startsWith('+') ? '+' : '';
+  return `tel:${plus}${digits}`;
+}

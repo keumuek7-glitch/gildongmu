@@ -9,7 +9,7 @@ import { createMultiLegState, multiLegReducer, type MultiLegState } from '../src
 import { reconcileSession, SESSION_TTL_MS } from '../src/core/stateMachine/sessionTimeReconciler';
 import { preprocessForSpeech } from '../src/core/tts/guidanceSpeechBuilder';
 import { decodeGuardianLink, encodeGuardianLink } from '../src/core/guardian/guardianLinkCodec';
-import { buildSmsUri, buildSosMessage } from '../src/core/guardian/sosMessageBuilder';
+import { buildSmsUri, buildSosMessage, buildTelUri } from '../src/core/guardian/sosMessageBuilder';
 import { getLineVisual } from '../src/core/metadata/subwayLineVisuals';
 import { serializeSession, deserializeSession } from '../src/hooks/usePersistedMultiLegSession';
 import { parseCsv, toRailGuides } from '../scripts/convertStationFacilities';
@@ -317,6 +317,14 @@ describe('TTS 전처리·노선색·보호자 기능', () => {
     expect(msg).toContain('https://maps.google.com/?q=37.58000,127.04000');
     expect(buildSmsUri('010-1234-5678', 'hi', 'Android')).toBe('sms:01012345678?body=hi');
     expect(buildSmsUri('010-1234-5678', 'hi', 'iPhone')).toBe('sms:01012345678&body=hi');
+  });
+
+  it('buildTelUri: 숫자만 남겨 tel: 링크를 만들고, 번호가 없으면 null', () => {
+    expect(buildTelUri('010-1234-5678')).toBe('tel:01012345678');
+    expect(buildTelUri(' +82 10 1234 5678 ')).toBe('tel:+821012345678');
+    expect(buildTelUri('')).toBeNull();
+    expect(buildTelUri('전화번호 없음')).toBeNull();
+    expect(buildTelUri('12')).toBeNull();
   });
 });
 

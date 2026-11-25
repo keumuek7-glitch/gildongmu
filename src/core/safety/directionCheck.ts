@@ -45,12 +45,12 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
     const lookFor = leg.way ? `${leg.way} 방면` : next ? `다음 역 ${next}` : `${target} 방향`;
     return {
       question: leg.way
-        ? `타는 곳 안내판에 ${josa(q(`${leg.way} 방면`), '이', '가')} 보이나요?`
+        ? `여기가 ${q(`${leg.way} 방면`)}인가요?`
         : next
-          ? `타는 곳 안내판에 다음 역이 ${josa(q(next), '으로', '로')} 적혀 있나요?`
-          : `타는 곳 안내판에 ${q(target)} 방향이 보이나요?`,
+          ? `다음 역이 ${q(next)}인가요?`
+          : `여기가 ${q(target)} 방향인가요?`,
       lookFor,
-      okText: '맞아요. 이쪽에서 열차를 타세요',
+      okText: '맞아요. 타세요',
       wrongTitle: '반대 방향이에요. 이 열차는 타지 마세요',
       wrongLines: [
         `안내판에서 ${josa(q(lookFor), '을', '를')} 찾아 그쪽 타는 곳으로 가세요`,
@@ -63,11 +63,11 @@ export function boardingCheckFor(leg: RideLeg): BoardingCheck {
   const bus = leg.busNo ? `${leg.busNo}번` : '버스';
   return {
     question: next
-      ? `정류장 안내판이나 버스 앞 화면에서 다음 정류장이 ${q(next)}인가요?`
-      : `버스 앞 화면에 ${josa(q(bus), '이', '가')} 보이나요?`,
+      ? `다음 정류장이 ${q(next)}인가요?`
+      : `${q(bus)} 버스인가요?`,
     lookFor: next ? `다음 정류장 ${next}` : bus,
-    okText: '맞아요. 이 버스를 타세요',
-    wrongTitle: '반대 방향 정류장일 수 있어요. 타지 마세요',
+    okText: '맞아요. 타세요',
+    wrongTitle: '반대쪽일 수 있어요. 타지 마세요',
     wrongLines: [
       '길 건너편 정류장에서 타야 할 수 있어요',
       `건너편 정류장에서 ${next ? `다음 정류장이 ${q(next)}인지` : `${q(bus)}인지`} 다시 확인하세요`,

@@ -14,7 +14,7 @@ export function pairStatusText(role: Role, paired: boolean, state: RelayState): 
   return '연결하는 중';
 }
 
-/** 두 휴대폰 연결 상태와 버튼 (어르신·가족 공통) */
+/** 두 휴대폰 연결 상태와 버튼 (설정 화면 안에서 어르신·가족 공통으로 씀) */
 export function PairingPanel(props: {
   role: Role;
   paired: boolean;
@@ -22,7 +22,6 @@ export function PairingPanel(props: {
   /** 가족만: 연결 링크를 만들어 돌려줌 */
   onMakeLink?: () => string;
   onUnpair: () => void;
-  onChangeRole: () => void;
 }) {
   const [link, setLink] = useState('');
   const [note, setNote] = useState('');
@@ -36,8 +35,8 @@ export function PairingPanel(props: {
   };
 
   return (
-    <details className="settings" open={props.role === 'child' && !props.paired}>
-      <summary>가족 휴대폰과 연결</summary>
+    <section className="settings-block">
+      <h2 className="settings-block__title">가족 휴대폰과 연결</h2>
       <p className="hint" role="status">{pairStatusText(props.role, props.paired, props.state)}</p>
       {props.role === 'child' && (
         <button className="btn btn--primary" onClick={() => void share()}>
@@ -56,9 +55,6 @@ export function PairingPanel(props: {
           연결 끊기
         </button>
       )}
-      <button className="btn btn--ghost" onClick={props.onChangeRole}>
-        {props.role === 'elder' ? '가족 화면으로 바꾸기' : '어르신 화면으로 바꾸기'}
-      </button>
-    </details>
+    </section>
   );
 }

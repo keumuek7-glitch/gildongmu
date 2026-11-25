@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { currentLeg, type MultiLegState } from '../core/stateMachine/multiLegManager';
 import { isRideLeg, type RideLeg } from '../core/stateMachine/routeLegBuilder';
-import { currentTransitVM, remainingStops, type TransitState } from '../core/stateMachine/transitStateMachine';
+import { currentTransitVM, type TransitState } from '../core/stateMachine/transitStateMachine';
 import { BoardingDirectionCheck } from '../components/BoardingDirectionCheck';
 import { arrivedVM } from '../core/tts/guidanceSpeechBuilder';
 import {
@@ -14,28 +14,6 @@ import {
   type SpeechBinding,
 } from '../components/GuidanceCards';
 
-function StopProgress({ leg, t }: { leg: RideLeg; t: TransitState }) {
-  const pos = Math.max(t.anchorIndex, t.estimatedIndex);
-  return (
-    <ol className="stops" aria-label="정차 목록">
-      {leg.stations.map((name, i) => (
-        <li
-          key={`${name}-${i}`}
-          className={[
-            'stops__item',
-            i < pos ? 'is-past' : '',
-            i === pos ? 'is-current' : '',
-            i === leg.stations.length - 1 ? 'is-target' : '',
-          ].join(' ')}
-        >
-          {name}
-          {i === leg.stations.length - 1 && ' (내림)'}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 function RideView(props: {
   leg: RideLeg;
   t: TransitState;
@@ -46,29 +24,30 @@ function RideView(props: {
 }) {
   const { leg, t } = props;
   const vm = currentTransitVM(leg, t);
-  const remaining = remainingStops(leg, t);
   return (
     <div className="stack">
-      <LineBanner visual={leg.visual} label={`${rideLabel(leg)} · ${leg.boardName} → ${leg.alightName}`} />
-      {t.phase !== 'WAITING_BOARDING' && t.phase !== 'WRONG_DIRECTION_SUSPECTED' && (
-        <div className="countdown" aria-live="polite">
-          <span className="countdown__num">{remaining}</span>
-          <span className="countdown__label">정거장 남음</span>
-        </div>
-      )}
-      <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
+      <LineBanner visual={leg.visual} label={rideLabel(leg)} />
+      {/* 타기 전 방향 확인은 자기 버튼(2개)만 보여 줍니다 */}
       {t.phase === 'WAITING_BOARDING' ? (
         <BoardingDirectionCheck key={leg.id} leg={leg} onBoarded={props.onBoarded} speak={props.speak} />
-      ) : t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
-        <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
       ) : (
-        <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
+        <>
+          <GuidanceBody vm={vm} onReplay={() => props.speak(vm.speech)} />
+          {t.phase === 'WRONG_DIRECTION_SUSPECTED' ? (
+            <button className="btn btn--primary" onClick={props.onReroute}>지금 위치에서 길 다시 찾기</button>
+          ) : (
+            <button className="btn btn--primary" onClick={props.onAlighted}>내렸어요</button>
+          )}
+        </>
       )}
-      {t.phase !== 'WAITING_BOARDING' && <StopProgress leg={leg} t={t} />}
     </div>
   );
 }
 
+/**
+ * 길 안내 화면. 버튼은 [지금 할 일] 하나. 막히면 우측 상단 SOS 버튼으로 가족에게 전화해요.
+ * 안내를 그만두려면 폰의 뒤로 버튼을 눌러요 (확인창이 떠요).
+ */
 export function ActiveGuideScreen(props: {
   session: MultiLegState;
   binding: SpeechBinding;
@@ -77,12 +56,11 @@ export function ActiveGuideScreen(props: {
   onWalkDone: () => void;
   onReroute: () => void;
   onFinish: () => void;
-  /** 도보 구간에서 나침반 열기 */
+  /** 걷는 구간에서 나침반 열기 */
   onCompass?: (target: { name: string; lat: number; lng: number }) => void;
 }) {
   const { session, binding } = props;
   const leg = currentLeg(session);
-  const step = `${Math.min(session.currentIndex + 1, session.legs.length)} / ${session.legs.length}단계`;
 
   let body: ReactNode;
   if (session.finished || !leg) {
@@ -107,22 +85,20 @@ export function ActiveGuideScreen(props: {
     const Card = leg.walkKind === 'TRANSFER' ? TransferGuidanceCard : leg.walkKind === 'EXIT' ? ExitGuidanceCard : AccessWalkCard;
     const target = leg.target;
     body = (
-      <>
-        <Card key={leg.id} leg={leg} onDone={props.onWalkDone} {...binding} />
-        {target && props.onCompass && (
-          <button className="btn btn--secondary" onClick={() => props.onCompass!(target)}>
-            🧭 나침반으로 방향 보기
-          </button>
-        )}
-      </>
+      <div className="stack">
+        <Card
+          key={leg.id}
+          leg={leg}
+          onDone={props.onWalkDone}
+          onCompass={target && props.onCompass ? () => props.onCompass!(target) : undefined}
+          {...binding}
+        />
+      </div>
     );
   }
 
   return (
     <main className="screen screen--guide">
-      <header className="screen__header screen__header--compact">
-        <p className="muted">{session.destName} 가는 길 · {step}</p>
-      </header>
       {body}
     </main>
   );

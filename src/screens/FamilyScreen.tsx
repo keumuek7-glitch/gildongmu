@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { DIR8, PHRASES, PHRASE_MAX, dirName, layoutFamilyMap } from '../core/family/familyMap';
 import { bearingDeg, fmtDist, norm360, type LatLng } from '../core/navigation/compass';
 import type { LatLngPlace, TripData } from '../core/guardian/familyRelay';
-import { kakaoReason, loadKakao, searchPlaces, getKakaoKey, setKakaoKey, type PlaceResult } from '../services/kakaoMaps';
+import { kakaoReason, loadKakao, searchPlaces, getKakaoKey, type PlaceResult } from '../services/kakaoMaps';
 
 export interface ElderLoc {
   lat: number;
@@ -126,7 +126,7 @@ export function FamilyScreen(props: {
   onSendTrip: (trip: TripData) => void;
   onResetTrip: () => void;
   onSendGuide: (g: GuideToSend) => void | Promise<void>;
-  children?: ReactNode;
+  onOpenSettings: () => void;
 }) {
   const loc = props.elderLoc;
   const dest = props.trip?.dest ?? null;
@@ -134,7 +134,6 @@ export function FamilyScreen(props: {
   const [results, setResults] = useState<PlaceResult[] | null>(null);
   const [searchNote, setSearchNote] = useState('');
   const [sending, setSending] = useState(false);
-  const [keyDraft, setKeyDraft] = useState(getKakaoKey);
   const [, tick] = useState(0);
 
   // "몇 분 전" 표시를 10초마다 새로
@@ -151,7 +150,7 @@ export function FamilyScreen(props: {
     const list = await searchPlaces(text);
     if (list === null) {
       setResults(null);
-      setSearchNote(getKakaoKey() ? kakaoReason() : '장소 찾기는 카카오 키를 넣으면 돼요 (아래 설정)');
+      setSearchNote(getKakaoKey() ? kakaoReason() : '장소 찾기는 카카오 키를 넣으면 돼요 (오른쪽 위 설정)');
       return;
     }
     setResults(list);
@@ -171,11 +170,23 @@ export function FamilyScreen(props: {
   return (
     <main className="screen">
       <header className="screen__header">
-        <h1>어르신 지금 위치</h1>
+        <div className="topbar">
+          <h1 className="topbar__title">어르신 지금 위치</h1>
+          <button className="gear-btn" onClick={props.onOpenSettings} aria-label="설정">
+            <span aria-hidden="true">⚙</span> 설정
+          </button>
+        </div>
         <p className={`muted ${stale ? 'warn' : ''}`}>
           {loc ? `${fmtTime(loc.t)} 받음${stale ? ' (오래됨)' : ''}` : '아직 위치를 못 받았어요'}
         </p>
       </header>
+
+      {!props.paired && (
+        <div className="banner banner--alert">
+          <p className="banner__title">어르신 폰과 먼저 연결해요</p>
+          <button className="btn btn--primary" onClick={props.onOpenSettings}>연결하러 가기</button>
+        </div>
+      )}
 
       {props.news && (
         <div className="banner banner--info" role="status">
@@ -244,18 +255,7 @@ export function FamilyScreen(props: {
       ) : (
         <p className="muted">어르신 위치를 받으면 약도와 방향 안내 보내기가 나와요</p>
       )}
-      {dest2 && !loc && <p className="hint">도착지는 보냈어요. 어르신이 “내 위치 보내기”를 누르면 약도가 떠요</p>}
-
-      {props.children}
-
-      <details className="settings">
-        <summary>장소 찾기 설정 (카카오 키)</summary>
-        <label className="field">
-          <span>카카오 JavaScript 키</span>
-          <input value={keyDraft} onChange={(e) => setKeyDraft(e.target.value)} autoComplete="off" />
-        </label>
-        <button className="btn btn--secondary" onClick={() => setKakaoKey(keyDraft)}>저장</button>
-      </details>
+      {dest2 && !loc && <p className="hint">도착지는 보냈어요. 어르신이 “내 위치 가족에게 보내기”를 누르면 약도가 떠요</p>}
     </main>
   );
 }

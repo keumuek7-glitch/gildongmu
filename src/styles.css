@@ -25,29 +25,40 @@
 body { margin: 0; background: var(--bg); }
 .app { max-width: 720px; margin: 0 auto; padding: 16px 16px 24px; }
 .app--with-safety { padding-bottom: 120px; }
+/* 어르신 화면: 우측 상단 SOS 버튼 자리를 비워 둠 */
+.app--elder { padding-top: 112px; }
+.sos-fab {
+  position: fixed; top: 12px; right: max(12px, calc((100vw - 720px) / 2 + 12px)); z-index: 100;
+  width: 88px; height: 88px; padding: 0; border-radius: var(--radius); border: 3px solid #fff;
+  background: var(--sos); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-decoration: none; font-family: inherit; font-weight: 900; cursor: pointer; box-shadow: 0 0 0 3px var(--sos), 0 3px 10px rgba(0, 0, 0, .35);
+}
+.sos-fab:focus-visible { outline: 4px solid #ffb000; outline-offset: 5px; }
+.sos-fab__icon { font-size: 34px; line-height: 1; }
+.sos-fab__text { font-size: 28px; line-height: 1.1; letter-spacing: .5px; }
 .screen { display: flex; flex-direction: column; gap: 16px; }
-.screen__header h1 { font-size: 32px; margin: 8px 0 4px; }
+.screen__header h1 { font-size: 44px; line-height: 1.25; margin: 8px 0 4px; }
 .screen__header--compact { margin-bottom: -4px; }
-.muted { color: var(--muted); margin: 0; font-size: 18px; }
-.big { font-size: 28px; font-weight: 800; margin: 4px 0 12px; }
+.muted { color: var(--muted); margin: 0; font-size: 24px; font-weight: 700; }
+.big { font-size: 38px; font-weight: 800; margin: 4px 0 12px; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 
 .btn {
-  min-height: 64px; width: 100%; border-radius: var(--radius); border: 3px solid var(--border);
-  font-size: 22px; font-weight: 800; cursor: pointer; padding: 10px 16px; background: var(--secondary-bg); color: var(--fg);
+  min-height: 84px; width: 100%; border-radius: var(--radius); border: 3px solid var(--border);
+  font-size: 30px; font-weight: 800; cursor: pointer; padding: 10px 16px; background: var(--secondary-bg); color: var(--fg);
 }
 .btn:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn--primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
 .btn--secondary { background: var(--secondary-bg); }
-.btn--ghost { background: transparent; min-height: 56px; font-size: 20px; }
+.btn--ghost { background: transparent; min-height: 64px; font-size: 24px; }
 .btn--sos { background: var(--sos); color: #fff; border-color: var(--sos); }
-.btn--favorite { display: flex; flex-direction: column; align-items: flex-start; min-height: 96px; text-align: left; }
-.btn__label { font-size: 30px; }
+.btn--favorite { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-height: 110px; text-align: left; }
+.btn__label { font-size: 40px; }
 .btn__sub { font-size: 18px; font-weight: 500; color: var(--muted); }
 
 .card { border: 3px solid var(--border); border-radius: var(--radius); padding: 18px; }
-.card__title { font-size: 34px; line-height: 1.25; margin: 0 0 10px; }
+.card__title { font-size: 48px; line-height: 1.25; margin: 0; }
 .card__lines { margin: 0 0 10px; padding-left: 1.1em; font-size: 24px; }
 .card__lines li { margin: 4px 0; }
 .card--alert { background: var(--alert-bg); border-color: var(--alert-border); }
@@ -55,9 +66,9 @@ body { margin: 0; background: var(--bg); }
 
 .line-banner {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  border-radius: var(--radius); padding: 14px 18px; font-size: 24px; font-weight: 800;
+  border-radius: var(--radius); padding: 16px 20px; font-size: 34px; font-weight: 800;
 }
-.line-banner__color { font-size: 20px; border: 2px solid currentColor; border-radius: 999px; padding: 2px 12px; white-space: nowrap; }
+.line-banner__color { font-size: 24px; border: 2px solid currentColor; border-radius: 999px; padding: 2px 12px; white-space: nowrap; }
 
 .countdown { display: flex; align-items: baseline; gap: 8px; justify-content: center; }
 .countdown__num { font-size: 72px; font-weight: 900; line-height: 1; }
@@ -74,7 +85,7 @@ body { margin: 0; background: var(--bg); }
   display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 64px; font-weight: 900; line-height: 1;
 }
 .exit-badge small { font-size: 20px; }
-.hint { font-size: 22px; margin: 0; }
+.hint { font-size: 26px; margin: 0; }
 
 .banner { border: 3px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 .banner__title { font-size: 24px; font-weight: 800; margin: 0; }
@@ -96,7 +107,7 @@ body { margin: 0; background: var(--bg); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border-radius: 999px; padding: 2px 12px; font-weight: 800; font-size: 18px; }
 
-.status { font-size: 22px; font-weight: 700; }
+.status { font-size: 28px; font-weight: 700; }
 .status--error { color: #a00000; }
 
 .settings, .dev-panel { border: 2px dashed #777; border-radius: var(--radius); padding: 10px 14px; margin-top: 16px; }
@@ -118,12 +129,12 @@ body { margin: 0; background: var(--bg); }
 /* ── 나침반 (기존 길동무에서 옮김): 목적지가 늘 위, 방향이 맞으면 화면 전체 초록 ── */
 .compass, .rv-guide {
   position: fixed; inset: 0; z-index: 50; overflow-y: auto;
-  background: var(--bg); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg); padding: 112px 16px 16px; display: flex; flex-direction: column; gap: 10px;
   max-width: 720px; margin: 0 auto;
 }
 .compass { align-items: stretch; }
 .compass__back { width: auto; align-self: flex-start; min-height: 56px; }
-.compass__dest { font-size: 26px; font-weight: 800; text-align: center; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); }
+.compass__dest { font-size: 32px; font-weight: 800; text-align: center; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); }
 .compass__svg { width: 100%; max-width: 350px; height: auto; max-height: 44dvh; align-self: center; }
 .compass__nsew text { fill: #6b6b6b; font-size: 30px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
 .compass__path { stroke: #15803d; stroke-width: 10; stroke-dasharray: 18 14; stroke-linecap: round; fill: none; }
@@ -133,7 +144,7 @@ body { margin: 0; background: var(--bg); }
 .compass__me { fill: #ffd36b; stroke: var(--border); stroke-width: 3; }
 .compass__me-tag { font-size: 30px; font-weight: 900; text-anchor: middle; fill: var(--fg); }
 .compass__msg { font-size: 40px; font-weight: 900; text-align: center; margin: 0; }
-.compass__dist { font-size: 20px; text-align: center; margin: 0; }
+.compass__dist { font-size: 30px; font-weight: 700; text-align: center; margin: 0; }
 .compass__actions { display: flex; gap: 12px; }
 .compass__sim { font-size: 18px; }
 .compass--aligned { background: #166534; color: #fff; }
@@ -157,18 +168,18 @@ body { margin: 0; background: var(--bg); }
 /* ── 버스 하차 알림 (기존 길동무의 주황 화면) ── */
 .bus-alight {
   position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; justify-content: center; gap: 18px;
-  padding: 24px 16px; background: #c2410c; color: #fff; text-align: center; max-width: 720px; margin: 0 auto;
+  padding: 112px 16px 24px; background: #c2410c; color: #fff; text-align: center; max-width: 720px; margin: 0 auto;
 }
 .bus-alight--now { background: #9a1c00; }
-.bus-alight__stop { font-size: 26px; font-weight: 800; margin: 0; background: #fff; color: #9a3412; border-radius: var(--radius); padding: 10px; }
-.bus-alight__msg { font-size: 48px; font-weight: 900; margin: 0; }
+.bus-alight__stop { font-size: 32px; font-weight: 800; margin: 0; background: #fff; color: #9a3412; border-radius: var(--radius); padding: 10px; }
+.bus-alight__msg { font-size: 60px; font-weight: 900; margin: 0; }
 .bus-alight__btn { background: #fff; color: #9a3412; border-color: #fff; }
 .bus-alight__later { background: transparent; color: #fff; border-color: #fff; }
 
 /* ── 타기 전 방향 확인 (역방향 예방) ── */
 .direction-check__look { font-size: 30px; font-weight: 900; margin: 4px 0; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); background: #fff; text-align: center; }
 .direction-check__answers { display: flex; gap: 12px; }
-.check-result { font-size: 24px; font-weight: 800; margin: 0; padding: 12px; border-radius: var(--radius); background: var(--alert-bg); }
+.check-result { font-size: 38px; font-weight: 800; margin: 0; padding: 12px; border-radius: var(--radius); background: var(--alert-bg); }
 .check-result--ok { background: var(--guardian-bg); }
 
 /* ── 가족 화면 ── */
@@ -182,3 +193,41 @@ body { margin: 0; background: var(--bg); }
 button.chip { min-height: 52px; padding: 6px 16px; font-size: 20px; border: 3px solid var(--border); background: #fff; color: var(--fg); cursor: pointer; }
 button.chip.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
 .leave-kakao { min-height: 80dvh; justify-content: center; text-align: center; }
+
+/* ── 상단 줄(제목 + 설정 버튼), 설정 화면, 접이식 정차 목록 ── */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar__title { font-size: 32px; margin: 8px 0 4px; flex: 1; min-width: 0; }
+.gear-btn {
+  flex: none; min-height: 56px; padding: 6px 16px; border-radius: var(--radius); border: 3px solid var(--border);
+  background: var(--secondary-bg); color: var(--fg); font-size: 20px; font-weight: 800; cursor: pointer; white-space: nowrap;
+}
+.gear-btn:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
+.back-btn { width: auto; align-self: flex-start; }
+.settings-block { border-top: 3px solid #d6d3cb; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.settings-block__title { font-size: 26px; margin: 0; }
+.check-row { display: flex; align-items: center; gap: 12px; font-size: 20px; min-height: 56px; }
+.check-row input { width: 28px; height: 28px; flex: none; }
+.stops-fold summary { cursor: pointer; font-weight: 700; min-height: 48px; display: flex; align-items: center; }
+
+/* ── 버튼 2개 이하 화면용: 눌러서 다시 읽는 카드, 화면 전체 알림 ── */
+.card--tap { cursor: pointer; }
+.card--tap:focus-visible { outline: 4px solid #ffb000; outline-offset: 2px; }
+.card__hint { margin: 6px 0 0; font-size: 18px; color: var(--muted); }
+.rv-guide__phrase { margin: 0; cursor: pointer; }
+.takeover {
+  position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  padding: 112px 16px 24px; max-width: 720px; margin: 0 auto; background: var(--alert-bg);
+}
+.takeover--warning { background: var(--warning-bg); }
+.takeover__title { font-size: 48px; line-height: 1.3; margin: 0; }
+.takeover__text { font-size: 24px; margin: 0; }
+
+/* ── 큰 글자 한 문장 ── */
+.route-card h2.route-card__line { font-size: 46px; line-height: 1.3; margin: 0; }
+.route-card { padding: 22px 18px; }
+.rv-guide .big { font-size: 56px; line-height: 1.2; }
+.direction-check .card__title { font-size: 44px; }
+.line-banner--bar { min-height: 28px; padding: 0; }
+/* 큰 글자가 낱말 중간에서 끊기지 않게 (어르신 화면) */
+.card__title, .check-result, .takeover__title, .bus-alight__msg, .screen__header h1,
+.route-card h2.route-card__line, .rv-guide .big, .big, .btn, .btn__label { word-break: keep-all; overflow-wrap: break-word; }
