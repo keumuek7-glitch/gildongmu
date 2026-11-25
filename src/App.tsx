@@ -185,7 +185,7 @@ export default function App() {
     const loc = await getCurrentLocation(8000);
     const gps = loc.source === 'GPS';
     if (gps) relay.send('elderLoc', { lat: loc.y, lng: loc.x, t: Date.now(), shout: true });
-    setLocNote(!gps ? '위치를 못 찾았어요. 위치 권한을 켜 주세요' : relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
+    setLocNote(!gps ? '위치를 못 찾았어요. 가족에게 도와 달라고 해 주세요' : relay.isPaired() ? '가족에게 위치를 보냈어요' : '가족 휴대폰과 아직 연결 안 됐어요');
   }, [relay]);
   const speech = useMemo(() => createWebSpeechAdapter(), []);
   const now = useCallback(() => Date.now() + simOffsetRef.current, []);
