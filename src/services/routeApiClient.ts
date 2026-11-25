@@ -53,3 +53,15 @@ export async function fetchSeniorRoutes(
     throw e;
   }
 }
+
+/**
+ * GitHub Pages처럼 서버(프록시)가 없는 곳에서는 VITE_STATIC_DEMO=true 로 빌드해
+ * 시연용 샘플 경로(청량리역 → 서울대병원)를 씁니다. 실제 경로 탐색은 프록시를 둘 곳이 정해진 뒤에 켭니다.
+ */
+export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === 'true';
+
+export async function fetchSeniorRoutesOrSample(c: Coords): Promise<RouteCandidate[]> {
+  if (!STATIC_DEMO) return fetchSeniorRoutes(c);
+  const sample = (await import('../data/sampleOdsayResponse.json')).default;
+  return parseOdsayResponse(sample);
+}
