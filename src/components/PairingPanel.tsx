@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Role } from '../core/guardian/familyRelay';
 import type { RelayState } from '../services/familyRelayClient';
+import { sendKakao, shareResultText } from '../services/kakaoInApp';
 
 export function pairStatusText(role: Role, paired: boolean, state: RelayState): string {
   if (!paired) {
@@ -29,23 +30,9 @@ export function PairingPanel(props: {
   const share = async () => {
     if (!props.onMakeLink) return;
     const url = props.onMakeLink();
-    const text = '이 링크를 한 번 누르면 길동무가 가족 휴대폰과 연결돼요';
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: '길동무 연결', text, url });
-        setNote('보낼 곳을 골라 주세요');
-        return;
-      }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') { setNote('보내지 않았어요'); return; }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setNote('복사했어요. 카톡에 붙여 넣어 주세요');
-    } catch {
-      setLink(url);
-      setNote('아래 링크를 길게 눌러 복사해 카톡으로 보내 주세요');
-    }
+    const r = await sendKakao('어르신께: 이 링크를 한 번 누르면 길동무가 가족 휴대폰과 연결돼요', url, '연결하기');
+    if (r === 'fail') setLink(url);
+    setNote(shareResultText(r, '어르신 대화방'));
   };
 
   return (

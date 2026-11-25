@@ -17,15 +17,28 @@ export function createWebSpeechAdapter(): SpeechAdapter {
 
   const pickVoice = () => synth?.getVoices().find((v) => v.lang?.toLowerCase().startsWith('ko'));
 
+  // 말소리를 못 내는 브라우저(카톡 안 브라우저 등)면 알림음으로 대신 (기존 길동무와 같음)
+  let speechOk: boolean | null = null;
   const speakNow = (text: string) => {
-    if (!synth) return;
-    synth.cancel();
-    const u = new SpeechSynthesisUtterance(preprocessForSpeech(text));
-    u.lang = 'ko-KR';
-    u.rate = 0.88;
-    const voice = pickVoice();
-    if (voice) u.voice = voice;
-    synth.speak(u);
+    if (!synth || speechOk === false) { chime(); return; }
+    let started = false;
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(preprocessForSpeech(text));
+      u.lang = 'ko-KR';
+      u.rate = 0.88;
+      const voice = pickVoice();
+      if (voice) u.voice = voice;
+      u.onstart = () => { started = true; speechOk = true; };
+      synth.speak(u);
+    } catch { /* 아래에서 알림음 */ }
+    if (speechOk === true) return;
+    // 1.2초 안에 말이 시작되지 않으면 안 되는 것으로 봄
+    setTimeout(() => {
+      if (started) return;
+      speechOk = false;
+      chime();
+    }, 1200);
   };
 
   if (typeof document !== 'undefined') {
@@ -45,7 +58,7 @@ export function createWebSpeechAdapter(): SpeechAdapter {
         pending = text;
         try {
           if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('환승 도우미', { body: text });
+            new Notification('길동무', { body: text });
           }
         } catch {
           /* 일부 브라우저는 페이지에서 Notification 생성 불가 */
@@ -65,6 +78,33 @@ export function createWebSpeechAdapter(): SpeechAdapter {
 export function vibrate(pattern: number[]) {
   try {
     navigator.vibrate?.(pattern);
+  } catch {
+    /* noop */
+  }
+}
+
+let audioCtx: AudioContext | null = null;
+/** 짧은 알림음 (WebAudio). 말소리를 못 낼 때 대신 씀 */
+export function chime(notes: number[] = [660, 880]) {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    audioCtx = audioCtx || new AC();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    const t0 = audioCtx.currentTime + 0.02;
+    notes.forEach((f, i) => {
+      const o = audioCtx!.createOscillator();
+      const g = audioCtx!.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const t = t0 + i * 0.22;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (i === notes.length - 1 ? 0.8 : 0.3));
+      o.connect(g).connect(audioCtx!.destination);
+      o.start(t);
+      o.stop(t + 0.9);
+    });
   } catch {
     /* noop */
   }

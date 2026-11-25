@@ -99,3 +99,10 @@ describe('노선 모양에 맞춘 지나침 여유', () => {
     expect(bus?.awayMarginM).toBeGreaterThanOrEqual(300);
   });
 });
+
+describe('조사: 괄호 뒤', () => {
+  it('괄호 설명은 빼고 앞 글자로 판단', () => {
+    expect(josa('서울대병원 앞 정류장(예시)', '을', '를')).toBe('서울대병원 앞 정류장(예시)을');
+    expect(josa("'제기동(1호선)'", '으로', '로')).toBe("'제기동(1호선)'으로");
+  });
+});

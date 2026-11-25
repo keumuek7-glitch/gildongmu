@@ -168,3 +168,37 @@ export function tripDestToRouteDest(trip: TripData | null): { name: string; x: n
   if (!d) return null;
   return { name: d.name || '가족이 보낸 곳', x: d.lng, y: d.lat };
 }
+
+/* ── 카톡 링크로 길 안내 보내기 (연결 전, 기존 길동무 ?go= 링크와 같은 모양) ── */
+
+export interface GuideLinkData {
+  g: { lat: number; lng: number; pan: number; phrase: string };
+  trip: { stop: LatLngPlace | null; dest: LatLngPlace | null } | null;
+}
+
+export function buildGuideLink(appUrl: string, data: GuideLinkData): string {
+  const u = new URL(appUrl);
+  u.search = '';
+  u.hash = '';
+  u.searchParams.set('role', 'elder');
+  u.searchParams.set('go', JSON.stringify(data));
+  return u.toString();
+}
+
+/** ?go= 링크 읽기. 이상하면 null */
+export function parseGuideLink(search: string): { guide: { lat: number; lng: number; pan: number; phrase: string }; trip: TripData | null } | null {
+  const raw = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('go');
+  if (!raw) return null;
+  let d: unknown;
+  try { d = JSON.parse(raw); } catch { return null; }
+  if (!d || typeof d !== 'object') return null;
+  const o = d as { g?: Record<string, unknown>; trip?: unknown };
+  const lat = Number(o.g?.lat);
+  const lng = Number(o.g?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  const trip = sanitizeTrip(o.trip);
+  return {
+    guide: { lat, lng, pan: Number(o.g?.pan) || 0, phrase: String(o.g?.phrase || '곧장 가요').slice(0, 20) },
+    trip: trip && trip.dest ? trip : null,
+  };
+}

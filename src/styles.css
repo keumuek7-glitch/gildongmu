@@ -181,3 +181,4 @@ body { margin: 0; background: var(--bg); }
 .warn { color: #b45309; }
 button.chip { min-height: 52px; padding: 6px 16px; font-size: 20px; border: 3px solid var(--border); background: #fff; color: var(--fg); cursor: pointer; }
 button.chip.chip--on { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.leave-kakao { min-height: 80dvh; justify-content: center; text-align: center; }

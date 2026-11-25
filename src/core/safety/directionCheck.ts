@@ -25,7 +25,7 @@ const q = (s: string) => `'${s}'`;
 
 /** 마지막 글자 받침: null=한글 아님, 0=없음, 8=ㄹ, 그 밖=있음 */
 function jong(word: string): number | null {
-  const w = word.trim().replace(/['"’”)]+$/, '');
+  const w = word.trim().replace(/['"’”]+$/, '').replace(/\s*\([^)]*\)$/, '').replace(/['"’”]+$/, '');
   const c = w.charCodeAt(w.length - 1);
   if (c >= 0xac00 && c <= 0xd7a3) return (c - 0xac00) % 28;
   if (c >= 0x30 && c <= 0x39) return [1, 1, 0, 1, 0, 0, 1, 1, 1, 0][c - 0x30]; // 0영 1일 2이 3삼 4사 5오 6육 7칠 8팔 9구 (대략)

@@ -125,7 +125,7 @@ export function FamilyScreen(props: {
   paired: boolean;
   onSendTrip: (trip: TripData) => void;
   onResetTrip: () => void;
-  onSendGuide: (g: GuideToSend) => void;
+  onSendGuide: (g: GuideToSend) => void | Promise<void>;
   children?: ReactNode;
 }) {
   const loc = props.elderLoc;

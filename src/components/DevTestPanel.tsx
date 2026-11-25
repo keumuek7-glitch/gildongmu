@@ -30,7 +30,7 @@ export function DevTestPanel({ actions, info, enabled }: { actions: DevActions; 
         <button onClick={actions.simulateRestore} disabled={!enabled}>앱 재실행(10분 후) 흉내</button>
         <button onClick={actions.busNear} disabled={!enabled}>버스: 하차 350m 전</button>
         <button onClick={actions.busNow} disabled={!enabled}>버스: 하차 40m 전</button>
-        <button onClick={actions.busAway} disabled={!enabled}>버스: 반대로 감</button>
+        <button onClick={actions.busAway} disabled={!enabled}>버스: 내릴 곳 지나침</button>
         <button onClick={actions.reset}>처음으로 / 세션 삭제</button>
       </div>
       <p className="dev-panel__note">

@@ -24,7 +24,9 @@ import { createWebSpeechAdapter, vibrate } from './services/speechAdapter';
 import { getCurrentLocation, FALLBACK_LOCATION } from './utils/currentLocationHelper';
 import { loadPersistedSession, usePersistedMultiLegSession } from './hooks/usePersistedMultiLegSession';
 import {
+  buildGuideLink,
   buildPairLink,
+  parseGuideLink,
   parsePairLink,
   parseRole,
   sanitizeTrip,
@@ -40,6 +42,7 @@ import { PairingPanel } from './components/PairingPanel';
 import { CompassView, type CompassTarget } from './components/CompassView';
 import { RoadviewGuide, sanitizeGuide, type FamilyGuide } from './components/RoadviewGuide';
 import { getKakaoKey, setKakaoKey } from './services/kakaoMaps';
+import { sendKakao, shareResultText } from './services/kakaoInApp';
 import { useBusProximityAlert } from './hooks/useBusProximityAlert';
 import { BusAlightBanner } from './components/BusAlightBanner';
 import { sanitizeNearM, type AlightAlert } from './core/navigation/proximityAlight';
@@ -59,7 +62,7 @@ const readPhone = () => {
 };
 
 /** 처음 한 번: 연결 링크(?pair=)·?role= 을 읽어 저장하고 주소에서 지웁니다. */
-function readInitialRole(): { role: Role | null; pairedNow: boolean } {
+function readInitialRole(): { role: Role | null; pairedNow: boolean; guideLink: boolean } {
   const search = window.location.search;
   const pair = parsePairLink(search);
   const urlRole = parseRole(new URLSearchParams(search).get('role'));
@@ -74,7 +77,17 @@ function readInitialRole(): { role: Role | null; pairedNow: boolean } {
       history.replaceState(history.state, '', window.location.pathname + (q ? '?' + q : ''));
     } catch { /* noop */ }
   }
-  return { role, pairedNow: !!pair };
+  // 카톡으로 받은 길 안내 링크(?go=, 기존 길동무와 같음): 받은 것으로 저장하고 주소에서 지움
+  const go = parseGuideLink(search);
+  if (go) {
+    const t = Date.now();
+    gdStore.set('last_guide', { type: 'guide', data: { ...go.guide, t }, t, from: 'child' });
+    if (go.trip) gdStore.set('last_trip', { type: 'trip', data: go.trip, t, from: 'child' });
+    role = 'elder';
+    gdStore.set('role', role);
+    try { history.replaceState(history.state, '', window.location.pathname + '?role=elder'); } catch { /* noop */ }
+  }
+  return { role, pairedNow: !!pair, guideLink: !!go };
 }
 
 function relayTripDest(m: RelayMessage | null) {
@@ -92,7 +105,7 @@ export default function App() {
   const [familyTrip, setFamilyTrip] = useState<TripData | null>(() => sanitizeTrip(relay.last('trip')?.data));
   const [compassTarget, setCompassTarget] = useState<CompassTarget | null>(null);
   const [familyGuide, setFamilyGuide] = useState<FamilyGuide | null>(() => sanitizeGuide(relay.last('guide')?.data));
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(initial.guideLink);
   const [kakaoKeyDraft, setKakaoKeyDraft] = useState(getKakaoKey);
   const [elderLoc, setElderLoc] = useState<ElderLoc | null>(() => (relay.last<ElderLoc>('elderLoc')?.data ?? null));
   const [screen, setScreen] = useState<Screen>('HOME');
@@ -474,10 +487,20 @@ export default function App() {
             relay.send('trip', empty);
             setFamilyTrip(empty);
           }}
-          onSendGuide={(g) => {
+          onSendGuide={async (g) => {
             if (familyTrip?.dest) relay.send('trip', familyTrip);
             relay.send('guide', g);
-            setNotice(paired ? '어르신 휴대폰으로 보냈어요' : '휴대폰 연결 전이라 아직 못 보냈어요. 아래에서 연결해 주세요');
+            if (paired) {
+              setNotice('어르신 휴대폰으로 보냈어요');
+              return;
+            }
+            // 연결 전: 카톡 링크로 (어르신이 링크를 열면 로드뷰·방향·도착지가 뜸)
+            const url = buildGuideLink(window.location.href, {
+              g: { lat: g.lat, lng: g.lng, pan: g.pan, phrase: g.phrase },
+              trip: familyTrip?.dest ? { stop: familyTrip.stop, dest: familyTrip.dest } : null,
+            });
+            const r = await sendKakao(`어르신께 길 안내: ${g.phrase}\n「길 보기」나 링크를 누르면 로드뷰와 방향이 떠요`, url, '길 보기');
+            setNotice(r === 'fail' ? `보내지 못했어요. 이 링크를 복사해 보내 주세요: ${url}` : shareResultText(r));
           }}
         >
           {pairingPanel}
