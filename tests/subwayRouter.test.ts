@@ -14,8 +14,9 @@ import { createSubwayRouter, metersBetween, SUBWAY_TUNING } from '../src/service
 
 const RAW_DIR = path.resolve(__dirname, '..', 'data', 'raw', 'seoul-metro');
 function pick(prefix: string): string {
-  const f = readdirSync(RAW_DIR).filter((n) => n.startsWith(prefix)).sort().pop()!;
-  return readFileSync(path.join(RAW_DIR, f), 'utf-8');
+  const hits = readdirSync(RAW_DIR).filter((n) => n.startsWith(prefix));
+  if (hits.length !== 1) throw new Error(`'${prefix}' 파일은 하나만 있어야 해요: ${hits.join(', ')}`);
+  return readFileSync(path.join(RAW_DIR, hits[0]), 'utf-8');
 }
 const RAW: RawFiles = { gaps: pick('역간거리'), transfers: pick('환승역거리'), coords: pick('1_8호선_역사_좌표') };
 

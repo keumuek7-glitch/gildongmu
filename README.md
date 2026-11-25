@@ -164,6 +164,7 @@ npm run convert:facilities -- --transfers scripts/sample-input/rail_transfers.cs
 - 자료: 역 사이 시간·거리, 환승역 걸음 거리·시간, 역 좌표 (`data/raw/seoul-metro/README.md`에 출처·받는 곳). 공공누리 1유형/제한 없음이라 출처만 밝히면 됩니다(설정 화면에 표시).
 - 만들기: `npm run build:subway` → `src/data/subwayGraph.json`. 자료가 서로 어긋나면(새 역·이름 변경·지선 변경·틀린 좌표) 조용히 틀린 지도를 만들지 않고 이유를 적어 멈춥니다. 테스트가 올려 둔 지도와 원본으로 만든 지도가 같은지도 확인합니다.
 - 계산: `src/services/subwayRouter.ts`. 출발·도착에서 800m 안 역(이름 기준 4곳까지)에서 시작해 빠른 길과 갈아타기 적은 길을 찾고, ODsay 응답과 같은 모양으로 만들어 같은 변환기를 지납니다. 못 찾으면(null) 지금까지처럼 ODsay로 넘어갑니다.
+- 자동 갱신: `.github/workflows/update-subway-data.yml`이 한 달에 한 번(매월 1일 12:17) 서울시 자료 페이지에서 가장 최근 CSV를 받아(`scripts/updateSubwayData.ts`) 지도를 다시 만들고 검사한 뒤, **main이 아닌 새 브랜치로 올려 Draft PR**을 엽니다. 바뀐 것이 없으면 아무것도 하지 않고, 합치는 것은 사람이 승인해야 합니다. 받기·지도 만들기·검사가 실패하면(새 역, 자료 모양 변경 등) 이유를 적은 이슈를 엽니다. 역 좌표(공공데이터포털)는 사람 확인(CAPTCHA)이 나올 수 있어 자동으로 받지 않습니다.
 - 연결: `routeService`의 `local` — 앱이 찾은 길이 있으면 저장·하루 상한·바깥 호출을 쓰지 않고(`source: 'subway-local'`), 없으면 기존 흐름입니다.
 
 **이 방식이 못 하는 것(바깥 길 찾기로 넘어가는 경우)**
