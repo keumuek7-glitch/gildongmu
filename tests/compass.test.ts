@@ -8,6 +8,7 @@ import {
   headingFromOrientation,
   norm180,
   nsewPositions,
+  unwrapAngle,
   smoothHeading,
 } from '../src/core/navigation/compass';
 import { buildRouteLegs, type WalkLeg } from '../src/core/stateMachine/routeLegBuilder';
@@ -87,5 +88,17 @@ describe('도보 구간 나침반 목표', () => {
     const legs = buildRouteLegs(route, { destName: '서울대병원' });
     const exit = legs.find((l): l is WalkLeg => l.type === 'TRANSFER_WALK_LEG' && l.walkKind === 'EXIT');
     expect(exit?.target).toBeUndefined();
+  });
+});
+
+describe('unwrapAngle (바늘이 거꾸로 한 바퀴 돌지 않게)', () => {
+  it('359°→1°은 +2°만 더 돌아간다', () => {
+    expect(unwrapAngle(359, 1)).toBe(361);
+  });
+  it('1°→359°는 -2°만 돌아간다', () => {
+    expect(unwrapAngle(1, 359)).toBe(-1);
+  });
+  it('작은 변화는 그대로 이어진다', () => {
+    expect(unwrapAngle(100, 130)).toBe(130);
   });
 });

@@ -1,11 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
-import { compassGuide, fmtDist, nsewPositions, type LatLng } from '../core/navigation/compass';
+import { compassGuide, fmtDist, nsewPositions, unwrapAngle, type LatLng } from '../core/navigation/compass';
 import { useCompassSensors } from '../hooks/useCompassSensors';
 import { vibrate } from '../services/speechAdapter';
 import { isInsecurePage, PermissionHelpBox } from './PermissionHelpBox';
 
 export interface CompassTarget extends LatLng {
   name: string;
+}
+
+/**
+ * 동서남북 나침반: 휴대폰 윗부분이 향한 방향(heading)에 따라 글자판이 돌고,
+ * 빨간 바늘은 늘 북쪽을 가리킵니다. 방향을 아직 모르면 흐리게만 보여 줍니다.
+ */
+function NorthDial({ heading }: { heading: number | null }) {
+  const shown = useRef(0);
+  if (heading != null) shown.current = unwrapAngle(shown.current, heading);
+  const c = 50;
+  return (
+    <svg className={`north-dial${heading == null ? ' north-dial--wait' : ''}`} viewBox="0 0 100 100" role="img" aria-label="동서남북 나침반">
+      <circle cx={c} cy={c} r="47" className="north-dial__face" />
+      {nsewPositions(c, c, 33, shown.current).map((m) => (
+        <text key={m.name} x={m.x.toFixed(1)} y={m.y.toFixed(1)} className={m.name === '북' ? 'north-dial__n' : undefined}>{m.name}</text>
+      ))}
+      <g transform={`rotate(${(-shown.current).toFixed(1)} ${c} ${c})`}>
+        <path d="M50 50 L44 50 L50 20 L56 50 Z" className="north-dial__needle" />
+        <path d="M50 50 L44 50 L50 80 L56 50 Z" className="north-dial__tail" />
+      </g>
+      <circle cx={c} cy={c} r="4" className="north-dial__pin" />
+    </svg>
+  );
 }
 
 /**
@@ -55,7 +78,10 @@ export function CompassView(props: {
       {roadviewShown && (
         <button className="btn btn--ghost compass__back" onClick={props.onClose}>← 뒤로</button>
       )}
-      <div className="compass__dest">🚩 {props.target.name}</div>
+      <div className="compass__top">
+        <div className="compass__dest">🚩 {props.target.name}</div>
+        <NorthDial heading={s.heading} />
+      </div>
       <svg className="compass__svg" viewBox="0 0 350 440" role="img" aria-label="목적지 방향">
         <g className="compass__nsew">
           {marks.map((m) => (

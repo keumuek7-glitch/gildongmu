@@ -137,6 +137,17 @@ body { margin: 0; background: var(--bg); }
 }
 .compass { align-items: stretch; }
 .compass__back { width: auto; align-self: flex-start; min-height: 56px; }
+.compass__top { display: flex; gap: 10px; align-items: center; }
+.compass__top .compass__dest { flex: 1; min-width: 0; }
+.north-dial { width: 104px; height: 104px; flex: none; }
+.north-dial__face { fill: #fff; stroke: var(--border); stroke-width: 3; }
+.north-dial text { fill: #333; font-size: 15px; font-weight: 800; text-anchor: middle; dominant-baseline: middle; }
+.north-dial text.north-dial__n { fill: #c62828; font-size: 18px; }
+.north-dial__needle { fill: #c62828; }
+.north-dial__tail { fill: #9e9e9e; }
+.north-dial__pin { fill: #222; }
+.north-dial g[transform] { transition: transform .15s linear; }
+.north-dial--wait { opacity: .4; }
 .compass__dest { font-size: 32px; font-weight: 800; text-align: center; padding: 8px 12px; border: 3px solid var(--border); border-radius: var(--radius); }
 .compass__svg { width: 100%; max-width: 350px; height: auto; max-height: 44dvh; align-self: center; }
 .compass__nsew text { fill: #6b6b6b; font-size: 30px; font-weight: 700; text-anchor: middle; dominant-baseline: middle; }
