@@ -19,7 +19,7 @@ function NorthDial({ heading }: { heading: number | null }) {
   return (
     <svg className={`north-dial${heading == null ? ' north-dial--wait' : ''}`} viewBox="0 0 100 100" role="img" aria-label="동서남북 나침반">
       <circle cx={c} cy={c} r="47" className="north-dial__face" />
-      {nsewPositions(c, c, 33, shown.current).map((m) => (
+      {nsewPositions(c, c, 31, shown.current).map((m) => (
         <text key={m.name} x={m.x.toFixed(1)} y={m.y.toFixed(1)} className={m.name === '북' ? 'north-dial__n' : undefined}>{m.name}</text>
       ))}
       <g transform={`rotate(${(-shown.current).toFixed(1)} ${c} ${c})`}>
