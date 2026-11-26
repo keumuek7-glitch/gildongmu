@@ -106,3 +106,11 @@ export function nsewPositions(cx: number, cy: number, r: number, upBearing: numb
     return { name, x: cx + r * Math.sin(a), y: cy - r * Math.cos(a) };
   });
 }
+
+/**
+ * 바늘이 한 바퀴 넘어갈 때(359°→1°) 거꾸로 한 바퀴 도는 것을 막기 위해,
+ * 이전에 그린 각도(prev)에서 가장 가까운 쪽으로 이어 붙인 각도를 돌려줍니다.
+ */
+export function unwrapAngle(prev: number, next: number): number {
+  return prev + norm180(next - prev);
+}
