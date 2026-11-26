@@ -19,7 +19,7 @@ function NorthDial({ heading }: { heading: number | null }) {
   return (
     <svg className={`north-dial${heading == null ? ' north-dial--wait' : ''}`} viewBox="0 0 100 100" role="img" aria-label="동서남북 나침반">
       <circle cx={c} cy={c} r="47" className="north-dial__face" />
-      {nsewPositions(c, c, 31, shown.current).map((m) => (
+      {nsewPositions(c, c, 32, shown.current).map((m) => (
         <text key={m.name} x={m.x.toFixed(1)} y={m.y.toFixed(1)} className={m.name === '북' ? 'north-dial__n' : undefined}>{m.name}</text>
       ))}
       <g transform={`rotate(${(-shown.current).toFixed(1)} ${c} ${c})`}>
@@ -68,7 +68,7 @@ export function CompassView(props: {
 
   const cx = 175;
   const cy = 205;
-  const marks = g.targetBearing == null ? [] : nsewPositions(cx, cy, 165, g.targetBearing);
+  const marks = g.targetBearing == null ? [] : nsewPositions(cx, cy, 145, g.targetBearing);
 
   // [로드뷰]가 아래 두 번째 버튼 자리를 쓰면 [← 뒤로]가 사라지므로, 그때는 왼쪽 위에 작은 [← 뒤로]를 둡니다.
   const roadviewShown = !!props.onRoadview && !s.needPermit;
